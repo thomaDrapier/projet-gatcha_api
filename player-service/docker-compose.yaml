@@ -1,0 +1,12 @@
+services:
+  mongodb:
+    image: mongo:latest
+    container_name: gatcha-mongodb-player
+    ports:
+      - "27018:27017"
+    volumes:
+      - mongo_data:/data/db-player
+    restart: always
+
+volumes:
+  mongo_data:
