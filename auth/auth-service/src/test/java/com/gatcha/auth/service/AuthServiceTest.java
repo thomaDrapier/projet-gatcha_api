@@ -1,19 +1,21 @@
 package com.gatcha.auth.service;
 
-import com.gatcha.auth.model.User;
-import com.gatcha.auth.repository.UserRepository;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
 import static org.mockito.Mockito.when;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import com.gatcha.auth.model.User;
+import com.gatcha.auth.repository.UserRepository;
 
 @ExtendWith(MockitoExtension.class) // Active Mockito pour simuler la DB
 class AuthServiceTest {
@@ -87,7 +89,7 @@ class AuthServiceTest {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy/MM/dd-HH:mm:ss");
         String expiredToken = "Ash-" + pastDate.format(formatter);
 
-        // Il faut quand même que le token soit trouvé en base pour atteindre la vérification de date
+        // Il faut que le token soit trouvé en base pour atteindre la vérification de date
         when(userRepository.findByToken(expiredToken)).thenReturn(Optional.of(new User()));
 
         // ACT & ASSERT

@@ -1,12 +1,13 @@
 package com.gatcha.auth.service;
 
-import java.util.Optional;
-import com.gatcha.auth.model.User;
-import com.gatcha.auth.repository.UserRepository;
-import org.springframework.stereotype.Service;
-
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Optional;
+
+import org.springframework.stereotype.Service;
+
+import com.gatcha.auth.model.User;
+import com.gatcha.auth.repository.UserRepository;
 
 @Service
 public class AuthService {
@@ -20,13 +21,23 @@ public class AuthService {
     }
 
     // INSCRIPTION
-    public User register(String username, String password) {
+    public User register(String username, String password) throws Exception {
+        if (userRepository.findByUsername(username).isPresent()) {
+            throw new Exception("Ce pseudo est déjà pris !");
+        }
         // 1. On HASH le mot de passe avant de le donner à l'objet
         String hashedPassword = cryptoService.hashPassword(password);
 
         User user = new User();
         user.setUsername(username);
         user.setPassword(hashedPassword); // On sauvegarde le hash, pas le clair !
+
+        // 2. Génération du token dès l'inscription (Auto-login)
+        String token = cryptoService.generateToken(username);
+        String tokenClear = cryptoService.decrypt(token);
+        
+        user.setToken(token);
+        user.setToken_clear(tokenClear);
 
         return userRepository.save(user);
     }
@@ -42,12 +53,16 @@ public class AuthService {
             // 2. On vérifie le mot de passe (en comparant les HASH)
             if (cryptoService.verifyPassword(password, user.getPassword())) {
 
-                // 3. C'EST GAGNÉ : On génère un token
+                // 2.1. On génère le token crypté
                 String token = cryptoService.generateToken(user.getUsername());
+                
+                // 2.2. On récupére la version en clair
+                String tokenClear = cryptoService.decrypt(token);
 
-                // 4. IMPORTANT : On enregistre le token dans la base de données !
+                // 2.3. On enregistre en base de données
                 user.setToken(token);
-                userRepository.save(user); // C'est cette ligne qui met à jour la DB
+                user.setToken_clear(tokenClear); 
+                userRepository.save(user);;
 
                 return token;
             }
