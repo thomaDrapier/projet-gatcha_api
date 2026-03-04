@@ -1,12 +1,13 @@
 package com.gatcha.auth.service;
 
-import java.util.Optional;
-import com.gatcha.auth.model.User;
-import com.gatcha.auth.repository.UserRepository;
-import org.springframework.stereotype.Service;
-
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Optional;
+
+import org.springframework.stereotype.Service;
+
+import com.gatcha.auth.model.User;
+import com.gatcha.auth.repository.UserRepository;
 
 @Service
 public class AuthService {
@@ -47,7 +48,7 @@ public class AuthService {
 
                 // 4. IMPORTANT : On enregistre le token dans la base de données !
                 user.setToken(token);
-                userRepository.save(user); // C'est cette ligne qui met à jour la DB
+                userRepository.save(user);
 
                 return token;
             }
