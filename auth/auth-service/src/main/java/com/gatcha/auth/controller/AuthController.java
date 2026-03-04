@@ -42,7 +42,15 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody User user) {
-        return ResponseEntity.ok(authService.register(user.getUsername(), user.getPassword()));
+        try {
+            // On essaie d'inscrire l'utilisateur
+            User newUser = authService.register(user.getUsername(), user.getPassword());
+            return ResponseEntity.ok(newUser);
+            
+        } catch (Exception e) {
+            // Si l'erreur "Ce pseudo est déjà pris : on renvoie un code 400.
+            return ResponseEntity.status(400).body(Map.of("error", e.getMessage()));
+        }
     }
 
     @Operation(

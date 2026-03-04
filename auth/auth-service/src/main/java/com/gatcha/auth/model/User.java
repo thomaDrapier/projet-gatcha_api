@@ -21,10 +21,17 @@ public class User {
     @Schema(accessMode = Schema.AccessMode.READ_ONLY)
     private String token;
 
+    @Schema(accessMode = Schema.AccessMode.READ_ONLY)
+    private String token_clear;
+
     public User() {}
 
     public User(String username, String password) {
         this.username = username;
         this.password = password;
+    }
+
+    public void setToken_clear(String token_clear) {
+        this.token_clear = token_clear;
     }
 }
