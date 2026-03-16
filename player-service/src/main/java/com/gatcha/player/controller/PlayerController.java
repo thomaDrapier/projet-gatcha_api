@@ -43,7 +43,7 @@ public class PlayerController {
     })
     @PostMapping("/init/{username}")
     public ResponseEntity<?> initPlayer(
-            @Parameter(description = "Token JWT de l'utilisateur") @RequestHeader("Authorization") String token,
+            @RequestHeader("Authorization") String token,
             @Parameter(description = "Le pseudo du joueur") @PathVariable String username) {
         
         try { authValidation.checkToken(token); } 
@@ -68,7 +68,7 @@ public class PlayerController {
     })
     @GetMapping("/{username}")
     public ResponseEntity<?> getProfile(
-            @Parameter(description = "Token JWT de l'utilisateur") @RequestHeader("Authorization") String token,
+            @RequestHeader("Authorization") String token,
             @Parameter(description = "Le pseudo du joueur") @PathVariable String username) {
         
         try { authValidation.checkToken(token); } 
@@ -93,7 +93,7 @@ public class PlayerController {
     })
     @PostMapping("/{username}/xp")
     public ResponseEntity<?> gainXp(
-            @Parameter(description = "Token JWT de l'utilisateur") @RequestHeader("Authorization") String token,
+            @RequestHeader("Authorization") String token,
             @Parameter(description = "Le pseudo du joueur") @PathVariable String username,
             @RequestBody XpRequest request) { 
         
@@ -119,7 +119,7 @@ public class PlayerController {
     })
     @PostMapping("/{username}/monsters/{monsterId}")
     public ResponseEntity<?> addMonster(
-            @Parameter(description = "Token JWT de l'utilisateur") @RequestHeader("Authorization") String token,
+            @RequestHeader("Authorization") String token,
             @Parameter(description = "Le pseudo du joueur") @PathVariable String username,
             @Parameter(description = "L'ID unique du monstre à ajouter") @PathVariable String monsterId) {
         
@@ -145,7 +145,7 @@ public class PlayerController {
     })
     @GetMapping("/{username}/level")
     public ResponseEntity<?> getLevel(
-            @Parameter(description = "Token JWT de l'utilisateur") @RequestHeader("Authorization") String token,
+            @RequestHeader("Authorization") String token,
             @Parameter(description = "Le pseudo du joueur") @PathVariable String username) {
         
         try { authValidation.checkToken(token); } 
@@ -171,7 +171,7 @@ public class PlayerController {
     })
     @GetMapping("/{username}/monsters")
     public ResponseEntity<?> getMonsters(
-            @Parameter(description = "Token JWT de l'utilisateur") @RequestHeader("Authorization") String token,
+            @RequestHeader("Authorization") String token,
             @Parameter(description = "Le pseudo du joueur") @PathVariable String username) {
         
         try { authValidation.checkToken(token); } 
