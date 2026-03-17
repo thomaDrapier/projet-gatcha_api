@@ -4,8 +4,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping; // Ajouté
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader; // <-- Nouvel import
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -13,7 +14,7 @@ import com.gatcha.player.model.XpRequest;
 import com.gatcha.player.service.AuthValidationService;
 import com.gatcha.player.service.PlayerService;
 
-import io.swagger.v3.oas.annotations.Operation; // <-- Nouvel import
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -25,7 +26,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 public class PlayerController {
 
     private final PlayerService playerService;
-    private final AuthValidationService authValidation; // <-- Ajout du service de validation
+    private final AuthValidationService authValidation;
 
     public PlayerController(PlayerService playerService, AuthValidationService authValidation) {
         this.playerService = playerService;
@@ -107,10 +108,10 @@ public class PlayerController {
         }
     }
 
-    // --- AJOUTER UN MONSTRE ---
+    // --- AJOUTER UN MONSTRE (Usage Utilisateur / Front) ---
     @Operation(
-            summary = "Ajouter un monstre à l'inventaire",
-            description = "Ajoute l'identifiant unique d'un monstre à la liste du joueur. Vérifie que la taille maximale de l'inventaire n'est pas dépassée."
+            summary = "Ajouter un monstre à l'inventaire (Sécurisé)",
+            description = "Usage manuel. Nécessite un token utilisateur."
     )
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Monstre ajouté avec succès"),
@@ -127,6 +128,28 @@ public class PlayerController {
         catch (Exception e) { return ResponseEntity.status(401).body(e.getMessage()); }
 
         try {
+            return ResponseEntity.ok(playerService.addMonster(username, monsterId));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    // --- AJOUTER UN MONSTRE (Usage Interne Invocations) ---
+    @Operation(
+            summary = "Ajouter un monstre (INTERNE)",
+            description = "Appelé par l'API Invocations. Ne nécessite pas de token Authorization."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Monstre lié avec succès au joueur"),
+            @ApiResponse(responseCode = "400", description = "Erreur lors de la liaison")
+    })
+    @PutMapping("/{username}/add-monster-internal/{monsterId}")
+    public ResponseEntity<?> addMonsterInternal(
+            @Parameter(description = "Le pseudo du joueur") @PathVariable String username,
+            @Parameter(description = "L'ID unique de l'instance du monstre") @PathVariable String monsterId) {
+        
+        try {
+            // Utilise la même logique de service que la méthode sécurisée
             return ResponseEntity.ok(playerService.addMonster(username, monsterId));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());

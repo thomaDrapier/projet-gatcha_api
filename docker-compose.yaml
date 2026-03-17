@@ -1,0 +1,58 @@
+services:
+  # --- BASES DE DONNÉES ---
+  mongo-auth:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+
+  mongo-player:
+    image: mongo:latest
+    ports:
+      - "27018:27017"
+
+  mongo-monster:
+    image: mongo:latest
+    ports:
+      - "27020:27017"
+
+  mongo-invocations: 
+    image: mongo:latest
+    ports: ["27019:27017"]
+
+  # --- MICROSERVICES ---
+  auth-service:
+    build: ./auth-service
+    ports:
+      - "8081:8081"
+    depends_on:
+      - mongo-auth
+    environment:
+      - SPRING_DATA_MONGODB_URI=mongodb://mongo-auth:27017/auth_db
+
+  player-service:
+    build: ./player-service
+    ports:
+      - "8082:8082"
+    depends_on:
+      - mongo-player
+    environment:
+      - SPRING_DATA_MONGODB_URI=mongodb://mongo-player:27017/player_db
+
+  monster-service:
+    build: ./monster
+    ports:
+      - "8084:8084"
+    depends_on:
+      - mongo-monster
+    environment:
+      - SPRING_DATA_MONGODB_URI=mongodb://mongo-monster:27017/monster_db
+
+  invocation-service:
+    build: ./invocation
+    ports:
+      - "8083:8083"
+    depends_on:
+      - player-service
+      - monster-service
+    environment:
+      - SPRING_DATA_MONGODB_URI=mongodb://mongo-monster:27017/invocation_db

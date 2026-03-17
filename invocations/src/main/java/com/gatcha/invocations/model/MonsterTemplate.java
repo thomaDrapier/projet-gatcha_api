@@ -28,17 +28,3 @@ public class MonsterTemplate {
     private double lootRate;
 }
 
-@Data
-class SkillTemplate {
-    private int num;
-    private int dmg;
-    private SkillRatio ratio;
-    private int cooldown;
-    private int lvlMax;
-}
-
-@Data
-class SkillRatio {
-    private String stat;
-    private double percent;
-}
