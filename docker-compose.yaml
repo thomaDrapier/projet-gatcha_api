@@ -28,6 +28,7 @@ services:
       - mongo-auth
     environment:
       - SPRING_DATA_MONGODB_URI=mongodb://mongo-auth:27017/auth_db
+      - SPRING_MONGODB_URI=mongodb://mongo-auth:27017/auth_db
 
   player-service:
     build: ./player-service
@@ -37,6 +38,7 @@ services:
       - mongo-player
     environment:
       - SPRING_DATA_MONGODB_URI=mongodb://mongo-player:27017/player_db
+      - SPRING_MONGODB_URI=mongodb://mongo-player:27017/player_db
 
   monster-service:
     build: ./monster
@@ -46,6 +48,7 @@ services:
       - mongo-monster
     environment:
       - SPRING_DATA_MONGODB_URI=mongodb://mongo-monster:27017/monster_db
+      - SPRING_MONGODB_URI=mongodb://mongo-monster:27017/monster_db
 
   invocation-service:
     build: ./invocations
@@ -54,5 +57,7 @@ services:
     depends_on:
       - player-service
       - monster-service
+      - mongo-invocations 
     environment:
-      - SPRING_DATA_MONGODB_URI=mongodb://mongo-monster:27017/invocation_db
+      - SPRING_DATA_MONGODB_URI=mongodb://mongo-invocations:27017/invocation_db
+      - SPRING_MONGODB_URI=mongodb://mongo-invocations:27017/invocation_db
