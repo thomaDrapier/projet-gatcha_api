@@ -1,0 +1,12 @@
+services:
+  mongodb:
+    image: mongo:latest
+    container_name: gatcha-mongodb-monster
+    ports:
+      - "27020:27020"
+    volumes:
+      - mongo_data:/data/db-monster
+    restart: always
+
+volumes:
+  mongo_data:
