@@ -74,19 +74,22 @@ public class AuthService {
         // 1. Vérifier si le token (crypté) existe en base
         Optional<User> userOptional = userRepository.findByToken(token);
         if (userOptional.isEmpty()) {
+            System.out.println("Token non trouvé en base : " + token);
             throw new Exception("Token invalide ou introuvable.");
         }
 
         // 2. ON DÉCRYPTE LE TOKEN pour lire la date en clair
         String clearToken = cryptoService.decrypt(token);
+        System.out.println("Clear Token : " + clearToken);
 
         // 3. Logique pour vérifier la durée
         try {
             if (clearToken.length() < 19) {
                 throw new Exception("Format du token invalide");
             }
-
+            
             String datePart = clearToken.substring(clearToken.length() - 19);
+            
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy/MM/dd-HH:mm:ss");
             LocalDateTime tokenDate = LocalDateTime.parse(datePart, formatter);
             LocalDateTime expirationDate = tokenDate.plusHours(1);

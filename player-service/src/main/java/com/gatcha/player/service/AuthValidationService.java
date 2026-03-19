@@ -2,16 +2,13 @@ package com.gatcha.player.service;
 
 import java.util.Map;
 
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 @Service
 public class AuthValidationService {
 
-    private final String AUTH_API_URL = "http://localhost:8081/auth/validate";
+    private final String AUTH_API_URL = "http://auth-service:8081/auth/validate";
     private final RestTemplate restTemplate = new RestTemplate();
 
 public void checkToken(String token) throws Exception {
@@ -29,14 +26,23 @@ public void checkToken(String token) throws Exception {
             System.out.println("--- DÉBUT VÉRIFICATION TOKEN ---");
             System.out.println("Envoi du token à l'API Auth : " + token);
 
-            // On prépare le body JSON : { "token": "ton_super_token" }
-            Map<String, String> body = Map.of("token", token);
-            HttpEntity<Map<String, String>> request = new HttpEntity<>(body);
+            // 1. On crée les Headers HTTP
+            org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+            // On remet "Bearer " devant le token car c'est le standard attendu dans un header Authorization
+            // headers.set("Authorization", "Bearer " + token);
 
-            // On appelle l'API Auth en méthode POST
-            ResponseEntity<Map> response = restTemplate.postForEntity(AUTH_API_URL, request, Map.class);
+            // 2. On crée l'entité de la requête (On y met les headers, sans body)
+            org.springframework.http.HttpEntity<Void> request = new org.springframework.http.HttpEntity<>(headers);
 
-            if (response.getStatusCode() != HttpStatus.OK) {
+            // 3. On utilise 'exchange' au lieu de 'postForEntity' pour pouvoir envoyer des Headers personnalisés
+            org.springframework.http.ResponseEntity<Map> response = restTemplate.exchange(
+                    AUTH_API_URL, 
+                    org.springframework.http.HttpMethod.POST, 
+                    request, 
+                    Map.class
+            );
+
+            if (response.getStatusCode() != org.springframework.http.HttpStatus.OK) {
                 throw new Exception("Accès refusé par le serveur d'authentification.");
             }
             
@@ -44,7 +50,6 @@ public void checkToken(String token) throws Exception {
             System.out.println("--- FIN VÉRIFICATION ---");
             
         } catch (org.springframework.web.client.HttpClientErrorException e) {
-            // C'EST ICI LA MAGIE : On récupère le vrai message d'erreur de l'API Auth !
             System.out.println("L'API Auth a rejeté la demande. Vrai motif : " + e.getResponseBodyAsString());
             throw new Exception("Token invalide : " + e.getResponseBodyAsString());
             

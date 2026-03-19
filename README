@@ -1,0 +1,40 @@
+# 🎲 Gatcha API - Architecture Microservices
+
+Ce projet est une application de type "Gatcha" basée sur une architecture en microservices. Il est développé en **Java 21** avec **Spring Boot** et utilise **MongoDB** pour la persistance des données. L'ensemble de l'infrastructure est conteneurisé avec **Docker**.
+
+## 🏗️ Architecture du Projet
+
+Le système est découpé en 4 microservices indépendants, chacun possédant sa propre base de données MongoDB pour respecter les principes de l'architecture microservices :
+
+* **Auth Service** : Gestion de l'authentification et des utilisateurs.
+* **Player Service** : Gestion des profils joueurs et de leur inventaire.
+* **Monster Service** : Catalogue des monstres disponibles dans le jeu.
+* **Invocation Service** : Logique de tirage (gatcha) et historique des invocations.
+
+---
+
+## 🚀 Prérequis
+
+Pour exécuter ce projet sur votre machine, vous devez avoir installé :
+* **Docker** et **Docker Compose** (Docker Desktop recommandé).
+* *Optionnel* : Java 21 et Maven (si vous souhaitez recompiler les sources localement).
+
+---
+
+## 🛠️ Installation et Démarrage
+
+Le projet est livré prêt à l'emploi grâce à Docker Compose. 
+
+1. Ouvrez un terminal à la racine du projet (là où se trouve le fichier `docker-compose.yaml`).
+2. Assurez-vous que les ports `8081` à `8084` et `27017` ne sont pas déjà utilisés sur votre machine.
+3. Lancez la commande suivante pour construire les images et démarrer les conteneurs :
+
+```bash
+docker compose up --build
+docker compose down
+
+Microservice	Port	URL de la documentation Swagger
+Auth Service	8081	http://localhost:8081/swagger-ui/index.html
+Player Service	8082	http://localhost:8082/swagger-ui/index.html
+Monster Service	8083	http://localhost:8083/swagger-ui/index.html
+Invocation Service	8084	http://localhost:8084/swagger-ui/index.html

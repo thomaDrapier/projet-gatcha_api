@@ -3,6 +3,7 @@ package com.gatcha.auth.controller;
 import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -17,6 +18,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 
+@CrossOrigin(origins = "*")
 // La classe sert à répondre à des requêtes Web
 @RestController
 // Préfixe de l'url sera http://localhost:8081/auth
@@ -86,6 +88,11 @@ public class AuthController {
     public ResponseEntity<?> validate(@RequestHeader("Authorization") String token) {
         try {
             // On tente de valider.
+            if (token != null && token.startsWith("Bearer ")) {
+                token = token.substring(7).trim();
+            }
+            System.out.println("--- DÉBUT PROCESSUS VALIDATION TOKEN PAR AUTH SERVICE ---");
+            System.out.println("Token reçu : " + token);
             authService.validateToken(token);
 
             // Si on arrive ici, c'est que tout s'est bien passé
