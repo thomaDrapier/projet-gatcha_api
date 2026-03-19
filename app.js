@@ -105,23 +105,26 @@ registerForm.addEventListener('submit', async (e) => {
         return;
     }
 
-    // ✅ La nouvelle méthode qui envoie un objet JSON dans le Body
+    // 1. On prépare le Body en JSON pour Spring Boot
     const userData = {
-    username: username,
-    password: pwd1
+        username: username,
+        password: pwd1
     };
-const res = await fetchApi(`${AUTH_API}/register`, 'POST', userData);
+
+    // 2. Appel API
+    const res = await fetchApi(`${AUTH_API}/register`, 'POST', userData);
     
     if (res.status === 200) {
-        // Enregistrement réussi, on récupère le token et on initie le joueur
-        currentToken = res.data.token_clear || res.data.token; // Adapte selon ce que ton API renvoie
+        // 3. CORRECTION : On récupère STRICTEMENT le token crypté !
+        currentToken = res.data.token; 
         currentUser = username;
+        
         localStorage.setItem('gatcha_token', currentToken);
         localStorage.setItem('gatcha_username', currentUser);
         
         showPlayerView();
         
-        // AUTO-INIT du profil joueur dans le Player Service
+        // AUTO-INIT du profil joueur
         await fetchApi(`${PLAYER_API}/init/${currentUser}`, 'POST');
         alert("Compte créé et profil joueur initialisé avec succès !");
     } else {
@@ -135,13 +138,23 @@ loginForm.addEventListener('submit', async (e) => {
     const username = document.getElementById('login-username').value;
     const pwd = document.getElementById('login-password').value;
 
-    const res = await fetchApi(`${AUTH_API}/login?username=${username}&password=${pwd}`, 'POST');
+    // 1. CORRECTION : On prépare le Body en JSON pour le Login aussi !
+    const loginData = {
+        username: username,
+        password: pwd
+    };
+
+    // 2. Appel API
+    const res = await fetchApi(`${AUTH_API}/login`, 'POST', loginData);
 
     if (res.status === 200) {
-        currentToken = res.data; // Le backend renvoie le token en Raw String
+        // Selon comment ton contrôleur est fait, il renvoie soit un objet {token: "..."} soit une simple string
+        currentToken = res.data.token || res.data; 
         currentUser = username;
+        
         localStorage.setItem('gatcha_token', currentToken);
         localStorage.setItem('gatcha_username', currentUser);
+        
         showPlayerView();
     } else {
         authError.innerText = "Identifiants incorrects.";
