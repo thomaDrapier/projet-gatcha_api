@@ -28,3 +28,4 @@ public class MonsterTemplate {
     private double lootRate;
 }
 
+

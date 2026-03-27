@@ -18,6 +18,8 @@ public class Monster {
     private String element;
     private int level; // Commence au niveau 1 [cite: 256]
     private double experience;
+    private int templateId;
+    private int unspentSkillPoints; // Points gagnés à chaque niveau, prêts à être distribués
     
     // Stats actuelles
     private int hp;
@@ -26,12 +28,4 @@ public class Monster {
     private int vit;
     
     private List<MonsterSkill> skills;
-}
-
-@Data
-class MonsterSkill {
-    private int num;
-    private int currentLevel; // Niveau d'amélioration [cite: 266]
-    private int maxLevel;
-    // Les dégâts et ratios sont recalculés en fonction du niveau
 }

@@ -1,11 +1,11 @@
 package com.gatcha.monster.repository;
 
-import org.springframework.data.mongodb.repository.MongoRepository; // Assurez-vous que c'est le bon import
+import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
 
-import com.gatcha.monster.model.MonsterInstance;
+import com.gatcha.monster.model.Monster; // <--- Vérifie bien cet import
 
 @Repository
-// Le premier type doit être MonsterInstance, pas Monster
-public interface MonsterRepository extends MongoRepository<MonsterInstance, String> {
+public interface MonsterRepository extends MongoRepository<Monster, String> {
+    // Spring va maintenant comprendre que findById renvoie un objet "Monster"
 }
