@@ -29,7 +29,7 @@ public void checkToken(String token) throws Exception {
             // 1. On crée les Headers HTTP
             org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
             // On remet "Bearer " devant le token car c'est le standard attendu dans un header Authorization
-            // headers.set("Authorization", "Bearer " + token);
+            headers.set("Authorization", "Bearer " + token);
 
             // 2. On crée l'entité de la requête (On y met les headers, sans body)
             org.springframework.http.HttpEntity<Void> request = new org.springframework.http.HttpEntity<>(headers);

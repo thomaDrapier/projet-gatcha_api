@@ -2,7 +2,8 @@ package com.gatcha.monster.controller;
 import java.util.Optional;
 
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping; // <--- On importe Monster, PAS MonsterInstance
+import org.springframework.web.bind.annotation.CrossOrigin; // <--- On importe Monster, PAS MonsterInstance
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -12,7 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.gatcha.monster.model.Monster;
 import com.gatcha.monster.repository.MonsterRepository;
 
-
+@CrossOrigin("*")
 @RestController
 @RequestMapping("/monsters")
 public class MonsterController {

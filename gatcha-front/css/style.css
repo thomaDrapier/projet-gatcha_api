@@ -235,3 +235,24 @@ button:hover { background: var(--primary); color: #000; box-shadow: 0 0 15px var
 .flash-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #ffffff; z-index: 99999; pointer-events: none; opacity: 0; }
 .flash-anim { animation: flashScreen 1.5s ease-out forwards; }
 @keyframes flashScreen { 0% { opacity: 1; } 100% { opacity: 0; } }
+
+.profile-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 15px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    margin-top: 15px;
+}
+
+.profile-info-block p, .profile-stats-block p {
+    margin: 8px 0;
+    font-size: 0.95rem;
+    color: #ecf0f1;
+}
+
+.profile-info-block strong, .profile-stats-block strong {
+    color: var(--primary);
+}
