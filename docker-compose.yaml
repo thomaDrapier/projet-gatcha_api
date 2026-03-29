@@ -10,14 +10,21 @@ services:
     ports:
       - "27018:27017"
 
+  mongo-invocations: 
+    image: mongo:latest
+    ports:
+      - "27019:27019"
+
   mongo-monster:
     image: mongo:latest
     ports:
       - "27020:27017"
 
-  mongo-invocations: 
+  mongo-combat:
     image: mongo:latest
-    ports: ["27019:27017"]
+    ports:
+      - "27021:27017"
+
 
   # --- MICROSERVICES ---
   auth-service:
@@ -61,3 +68,15 @@ services:
     environment:
       - SPRING_DATA_MONGODB_URI=mongodb://mongo-invocations:27017/invocation_db
       - SPRING_MONGODB_URI=mongodb://mongo-invocations:27017/invocation_db
+
+  combat-service:
+    build: ./combat
+    container_name: combat-service
+    ports:
+      - "8085:8085"
+    depends_on:
+      - mongo-combat
+    environment:
+      # C'est ici que la magie opère : Spring Boot utilisera ces variables au lieu du localhost
+      - SPRING_DATA_MONGODB_URI=mongodb://mongo-combat:27017/gatcha_battles
+      - SPRING_MONGODB_URI=mongodb://mongo-combat:27017/gatcha_battles
