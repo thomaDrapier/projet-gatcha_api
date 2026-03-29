@@ -20,7 +20,7 @@ public class Battle {
     private String winnerMonsterId;
     private LocalDateTime battleDate;
     
-    private List<BattleStep> replayLogs;
+    private List<BattleStep> replayLogs = new ArrayList<>();
 
     public Battle() {
         this.battleDate = LocalDateTime.now();

@@ -8,12 +8,13 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.gatcha.monster.model.Monster;
 import com.gatcha.monster.repository.MonsterRepository;
 
-@CrossOrigin("*")
+@CrossOrigin(origins = "*", allowedHeaders = "*", methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.OPTIONS})
 @RestController
 @RequestMapping("/monsters")
 public class MonsterController {
@@ -46,5 +47,10 @@ public class MonsterController {
         Optional<Monster> monster = repository.findById(id);
         return monster.map(ResponseEntity::ok)
                       .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @GetMapping
+    public ResponseEntity<Iterable<Monster>> getAllMonsters() {
+    return ResponseEntity.ok(repository.findAll());
     }
 }

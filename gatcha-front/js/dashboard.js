@@ -1,10 +1,10 @@
 // ==========================================
 // CONFIGURATION DES APIS
 // ==========================================
-const PLAYER_API = "http://localhost:8082/player";
-const INVOCATION_API = "http://localhost:8083/invocation"; 
-const MONSTER_API = "http://localhost:8084/monsters"; 
-const COMBAT_API = "http://localhost:8085/battle";
+const PLAYER_API = "http://127.0.0.1:8082/player";
+const INVOCATION_API = "http://127.0.0.1:8083/invocation"; 
+const MONSTER_API = "http://127.0.0.1:8084/monsters"; 
+const COMBAT_API = "http://127.0.0.1:8085/battle";
 
 const currentToken = localStorage.getItem('gatcha_token');
 const currentUser = localStorage.getItem('gatcha_username');
@@ -51,11 +51,14 @@ async function fetchApi(url, method, body = null) {
 }
 
 // ==========================================
-// GESTION DES PERSONNAGES (L'existant conservé)
+// GESTION DES PERSONNAGES
 // ==========================================
 async function renderCharacters() {
     charactersList.innerHTML = '<p style="color: var(--primary);">Synchronisation...</p>';
-    if (myCharacters.length === 0) { charactersList.innerHTML = '<p class="empty-msg">Aucun héros.</p>'; return; }
+    if (myCharacters.length === 0) { 
+        charactersList.innerHTML = '<p class="empty-msg">Aucun héros dans votre équipe.</p>'; 
+        return; 
+    }
     
     charactersList.innerHTML = ''; 
     for (let i = 0; i < myCharacters.length; i++) {
@@ -81,25 +84,65 @@ async function renderCharacters() {
     updateDashboardTimers();
 }
 
-// Modales Profil & Bestiaire
+// --- AJOUT : LOGIQUE DE CRÉATION DE PERSONNAGE ---
+const btnCreate = document.getElementById('btn-create-char');
+if (btnCreate) {
+    btnCreate.onclick = async () => {
+        const input = document.getElementById('create-char-name');
+        const name = input.value.trim();
+        
+        if (!name) {
+            alert("Veuillez entrer un nom !");
+            return;
+        }
+
+        const res = await fetchApi(`${PLAYER_API}/init/${name}`, 'POST');
+        
+        if (res && res.status === 200) {
+            myCharacters.push(name);
+            localStorage.setItem(storageKey, JSON.stringify(myCharacters));
+            input.value = ''; 
+            renderCharacters(); 
+        } else {
+            alert("Erreur lors de la création du personnage.");
+        }
+    };
+}
+
 window.openProfileModal = function(charName) {
     const data = loadedData[charName];
     if (!data) return;
+
     const level = data.level || 1;
-    const currentXp = data.xp || 0;
+    const currentXp = data.xp || data.experience || 0; // Supporte les deux noms de variable
     const xpRequired = level * 1000;
     let xpPercentage = (currentXp / xpRequired) * 100;
-    const creationDate = data.createdAt ? new Date(data.createdAt).toLocaleDateString('fr-FR') : "Inconnue";
+    if (xpPercentage > 100) xpPercentage = 100;
+
+    const monsterCount = data.monsters ? data.monsters.length : 0;
+    const totalBattles = data.totalBattles || 0;
 
     modalContent.innerHTML = `
-        <h2 class="modal-title">Héros : <span>${data.username}</span></h2>
-        <div class="profile-grid">
-            <p>⚔️ Combats : <strong>${data.totalBattles || 0}</strong></p>
-            <p>📅 Création : <strong>${creationDate}</strong></p>
+        <h2 class="modal-title">Fiche de <span>${data.username}</span></h2>
+        <div class="profile-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+            <div class="profile-info-block">
+                <p>🎖️ Niveau : <strong>${level}</strong></p>
+                <p>⚔️ Combats : <strong>${totalBattles}</strong></p>
+            </div>
+            <div class="profile-info-block">
+                <p>🐉 Monstres : <strong>${monsterCount}</strong></p>
+                <p>👤 Compte : <strong>${currentUser}</strong></p>
+            </div>
         </div>
-        <div class="xp-section" style="margin-top:20px;">
-            <div class="xp-text"><span>Progression Niveau ${level}</span><span>${currentXp}/${xpRequired}</span></div>
-            <div class="xp-bar-bg"><div class="xp-bar-fill" style="width: ${xpPercentage}%"></div></div>
+        
+        <div class="xp-section">
+            <div class="xp-text" style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                <span>Expérience</span>
+                <span>${Math.floor(currentXp)} / ${xpRequired}</span>
+            </div>
+            <div class="xp-bar-bg" style="background: rgba(255,255,255,0.1); border-radius: 10px; height: 12px; overflow: hidden;">
+                <div class="xp-bar-fill" style="width: ${xpPercentage}%; background: var(--primary); height: 100%; box-shadow: 0 0 10px var(--primary);"></div>
+            </div>
         </div>
     `;
     modalOverlay.classList.remove('hidden');
@@ -108,19 +151,40 @@ window.openProfileModal = function(charName) {
 window.openMonstersModal = async function(charName) {
     const data = loadedData[charName];
     const monsterIds = data.monsters || []; 
-    modalContent.innerHTML = `<h2 class="modal-title">Inventaire de <span>${charName}</span></h2>`;
+    modalContent.innerHTML = `<h2 class="modal-title">Bestiaire de <span>${charName}</span></h2>`;
     modalOverlay.classList.remove('hidden');
+    
     const inv = document.createElement('div');
     inv.className = 'monster-inventory';
     modalContent.appendChild(inv);
 
+    if (monsterIds.length === 0) {
+        inv.innerHTML = '<p class="empty-msg" style="grid-column: 1/-1; text-align: center;">Ce héros n\'a pas encore de monstres.</p>';
+        return;
+    }
+
     for (const id of monsterIds) {
-        const res = await fetch(`${MONSTER_API}/${id}`);
-        if (res.ok) {
-            const m = await res.json();
-            const t = monsterTemplates[m.templateId] || monsterTemplates.default;
-            inv.innerHTML += `<div class="monster-item"><img src="${t.img}"><span class="monster-name-mini">${t.name}</span></div>`;
-        }
+        try {
+            const res = await fetch(`${MONSTER_API}/${id}`);
+            if (res.ok) {
+                const m = await res.json();
+                const t = monsterTemplates[m.templateId] || monsterTemplates.default;
+                
+                // Affichage complet de toutes les stats du monstre
+                inv.innerHTML += `
+                    <div class="monster-item">
+                        <div class="monster-level-badge">Lv.${m.level || 1}</div>
+                        <img src="${t.img}">
+                        <span class="monster-name-mini">${t.name}</span>
+                        <div class="monster-stats" style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; font-size: 0.8rem; margin-top: 5px;">
+                            <div class="stat-hp">❤️ ${m.hp || 0}</div>
+                            <div class="stat-atk">⚔️ ${m.atk || 0}</div>
+                            <div class="stat-def">🛡️ ${m.def || 0}</div>
+                            <div class="stat-vit">⚡ ${m.vit || 0}</div>
+                        </div>
+                    </div>`;
+            }
+        } catch (e) { console.error("Erreur chargement monstre ID:", id); }
     }
 };
 
@@ -150,17 +214,18 @@ window.executeSummon = async function(name, id) {
         monsterRevealArea.innerHTML = `<div class="monster-card glass"><h3>${t.name}</h3><img src="${t.img}" width="150"><button onclick="closeRevealModal('${name}')" class="action-btn">Génial !</button></div>`;
         monsterRevealArea.classList.remove('hidden'); summonModal.classList.remove('hidden');
         if (loadedData[name]) loadedData[name].monsters.push(res.data.instanceId);
-        fillArenaDropdowns(); // Mise à jour Arène
+        fillArenaDropdowns(); 
     }
 };
 
 window.closeRevealModal = function(name) {
     summonModal.classList.add('hidden'); monsterRevealArea.classList.add('hidden');
     localStorage.setItem(`gatcha_timer_${name}`, Date.now().toString());
+    updateDashboardTimers();
 };
 
 // ==========================================
-// NOUVEAU : SYSTÈME DE COMBAT
+// SYSTÈME DE COMBAT
 // ==========================================
 async function fillArenaDropdowns() {
     try {
@@ -168,6 +233,7 @@ async function fillArenaDropdowns() {
         const monsters = await res.json();
         const s1 = document.getElementById('arena-m1');
         const s2 = document.getElementById('arena-m2');
+        if (!s1 || !s2) return;
         s1.innerHTML = ''; s2.innerHTML = '';
         monsters.forEach(m => {
             const t = monsterTemplates[m.templateId] || monsterTemplates.default;
@@ -180,20 +246,58 @@ async function fillArenaDropdowns() {
 window.startBattle = async function() {
     const m1Id = document.getElementById('arena-m1').value;
     const m2Id = document.getElementById('arena-m2').value;
-    if (m1Id === m2Id) return alert("Sélectionnez deux monstres différents !");
+
+    // 1. Vérification de base
+    if (!m1Id || !m2Id || m1Id === m2Id) {
+        return alert("Sélectionnez deux monstres différents !");
+    }
 
     const btn = document.getElementById('btn-fight');
-    btn.disabled = true; btn.innerText = "Calcul...";
+    btn.disabled = true; 
+    btn.innerText = "Calcul...";
 
     try {
-        const res = await fetch(`${COMBAT_API}/start?monster1Id=${m1Id}&monster2Id=${m2Id}`, { method: 'POST' });
-        const battle = await res.json();
-        const m1 = await (await fetch(`${MONSTER_API}/${m1Id}`)).json();
-        const m2 = await (await fetch(`${MONSTER_API}/${m2Id}`)).json();
+        // 2. Lancement du combat
+        const battleRes = await fetch(`${COMBAT_API}/start?monster1Id=${m1Id}&monster2Id=${m2Id}`, { 
+            method: 'POST' 
+        });
+
+        if (!battleRes.ok) {
+            const errorText = await battleRes.text();
+            console.error("Erreur combat (Backend):", errorText);
+            throw new Error("Le serveur de combat a renvoyé une erreur.");
+        }
+
+        const battle = await battleRes.json();
+        console.log("Combat reçu :", battle);
+
+        // 3. Récupération des données des monstres (en parallèle pour aller plus vite)
+        const [resM1, resM2] = await Promise.all([
+            fetch(`${MONSTER_API}/${m1Id}`),
+            fetch(`${MONSTER_API}/${m2Id}`)
+        ]);
+
+        if (!resM1.ok || !resM2.ok) throw new Error("Impossible de récupérer les stats des monstres.");
+
+        const m1 = await resM1.json();
+        const m2 = await resM2.json();
+
+        // 4. Affichage et Animation
+        const battleDisplay = document.getElementById('battle-display');
+        if (battleDisplay) {
+            battleDisplay.classList.remove('hidden');
+            // On s'assure que le scroll descend au début du combat
+            battleDisplay.scrollIntoView({ behavior: 'smooth' });
+        }
         
-        document.getElementById('battle-display').classList.remove('hidden');
         animateBattle(battle, m1, m2);
-    } catch (e) { alert("Service de combat indisponible."); btn.disabled = false; btn.innerText = "LANCER"; }
+
+    } catch (e) {
+        console.error("Détail de l'erreur JS:", e);
+        alert("Erreur : " + e.message);
+        btn.disabled = false; 
+        btn.innerText = "LANCER";
+    }
 };
 
 async function animateBattle(battle, m1, m2) {
@@ -226,4 +330,8 @@ async function animateBattle(battle, m1, m2) {
 renderCharacters();
 fillArenaDropdowns();
 
-document.getElementById('btn-logout').addEventListener('click', () => { localStorage.clear(); window.location.href = 'index.html'; });
+document.getElementById('btn-logout').addEventListener('click', () => { 
+    localStorage.removeItem('gatcha_token');
+    localStorage.removeItem('gatcha_username');
+    window.location.href = 'index.html'; 
+});
