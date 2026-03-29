@@ -18,7 +18,7 @@ public class Monster {
     private String element;
     private int level; // Commence au niveau 1 [cite: 256]
     private double experience;
-    private int templateId;
+    private String templateId;
     private int unspentSkillPoints; // Points gagnés à chaque niveau, prêts à être distribués
     
     // Stats actuelles

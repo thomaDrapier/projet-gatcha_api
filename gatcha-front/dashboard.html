@@ -33,8 +33,50 @@
                     </div>
                 </div>
 
-                <div id="characters-list" class="characters-grid">
+                <div id="characters-list" class="characters-grid"></div>
+            </section>
+
+            <section class="panel full-width" style="margin-top: 30px;">
+                <div class="panel-header">
+                    <h3>⚔️ Arène de Combat</h3>
+                </div>
+                
+                <div class="arena-setup" style="display: flex; gap: 20px; align-items: center; margin-bottom: 25px;">
+                    <div style="flex: 1;">
+                        <label style="display:block; margin-bottom:5px; font-size:0.8rem; color:var(--primary);">Attaquant</label>
+                        <select id="arena-m1" style="width: 100%; padding: 12px; border-radius: 8px; background: rgba(0,0,0,0.5); color: white; border: 1px solid var(--glass-border);"></select>
                     </div>
+                    <div style="font-size: 1.5rem; font-weight: bold; color: var(--primary); margin-top: 20px;">VS</div>
+                    <div style="flex: 1;">
+                        <label style="display:block; margin-bottom:5px; font-size:0.8rem; color:var(--primary);">Défenseur</label>
+                        <select id="arena-m2" style="width: 100%; padding: 12px; border-radius: 8px; background: rgba(0,0,0,0.5); color: white; border: 1px solid var(--glass-border);"></select>
+                    </div>
+                    <button id="btn-fight" onclick="startBattle()" class="action-btn glow" style="width: auto; padding: 12px 40px; margin-top: 20px;">LANCER</button>
+                </div>
+
+                <div id="battle-display" class="hidden" style="background: rgba(0,0,0,0.4); padding: 25px; border-radius: 16px; border: 1px solid var(--glass-border);">
+                    <h2 id="battle-status" class="text-center" style="margin-bottom: 20px; color: var(--white); text-transform: uppercase; letter-spacing: 2px;">Préparation...</h2>
+                    
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+                        <div style="width: 40%; text-align: center;">
+                            <h4 id="f1-name" style="color: var(--primary); font-size: 1.2rem;">-</h4>
+                            <div class="xp-bar-bg" style="height: 20px; margin: 15px 0;"><div id="f1-hp-bar" class="xp-bar-fill" style="width: 100%; background: #2ecc71;"></div></div>
+                            <span id="f1-hp-text">0/0 HP</span>
+                        </div>
+                        
+                        <div style="font-size: 2rem; color: var(--danger); font-weight: bold; animation: neonPulse 1.5s infinite;">VS</div>
+                        
+                        <div style="width: 40%; text-align: center;">
+                            <h4 id="f2-name" style="color: var(--primary); font-size: 1.2rem;">-</h4>
+                            <div class="xp-bar-bg" style="height: 20px; margin: 15px 0;"><div id="f2-hp-bar" class="xp-bar-fill" style="width: 100%; background: #2ecc71;"></div></div>
+                            <span id="f2-hp-text">0/0 HP</span>
+                        </div>
+                    </div>
+
+                    <div id="battle-logs" style="height: 180px; overflow-y: auto; background: rgba(0,0,0,0.6); padding: 15px; border-radius: 10px; border: 1px solid var(--glass-border); font-family: 'Courier New', monospace; font-size: 0.95rem; color: #ecf0f1;">
+                        <p style="color: grey; font-style: italic;">En attente du signal...</p>
+                    </div>
+                </div>
             </section>
         </div>
     </div>
@@ -47,8 +89,7 @@
     </div>
 
     <div id="summon-modal" class="modal-overlay hidden">
-        <div id="monster-reveal-area" class="text-center hidden">
-            </div>
+        <div id="monster-reveal-area" class="text-center hidden"></div>
     </div>
 
     <script src="js/dashboard.js"></script>
