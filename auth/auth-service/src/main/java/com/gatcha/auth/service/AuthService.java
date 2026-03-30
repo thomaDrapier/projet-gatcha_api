@@ -70,32 +70,35 @@ public class AuthService {
         throw new Exception("Identifiants incorrects");
     }
     // VALIDATION DU TOKEN (Utilisateur + Durée de 1h)
-    public Boolean validateToken (String token) throws Exception {
-        // 1. Vérifier si le token existe en base (Affilié à un utilisateur)
+    public Boolean validateToken(String token) throws Exception {
+        // 1. Vérifier si le token (crypté) existe en base
         Optional<User> userOptional = userRepository.findByToken(token);
         if (userOptional.isEmpty()) {
-            throw new Exception("Token invalide");
+            System.out.println("Token non trouvé en base : " + token);
+            throw new Exception("Token invalide ou introuvable.");
         }
-        // 2. Vérifier la durée de validité (1 heure max)
-        try {
-            // Le format est : PSEUDO-YYYY/MM/DD-HH:mm:ss
-            // La date fait toujours 19 caractères à la fin.
-            if (token.length() < 19) {
-                throw new Exception("Token invalide");
-            }
 
-            String datePart = token.substring(token.length() - 19);
+        // 2. ON DÉCRYPTE LE TOKEN pour lire la date en clair
+        String clearToken = cryptoService.decrypt(token);
+        System.out.println("Clear Token : " + clearToken);
+
+        // 3. Logique pour vérifier la durée
+        try {
+            if (clearToken.length() < 19) {
+                throw new Exception("Format du token invalide");
+            }
+            
+            String datePart = clearToken.substring(clearToken.length() - 19);
+            
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy/MM/dd-HH:mm:ss");
             LocalDateTime tokenDate = LocalDateTime.parse(datePart, formatter);
             LocalDateTime expirationDate = tokenDate.plusHours(1);
 
-            // Si MAINTENANT est APRES la date limite -> Erreur
             if (LocalDateTime.now().isAfter(expirationDate)) {
                 throw new Exception("Token invalide : Le token a expiré (plus d'une heure).");
             }
 
         } catch (Exception e) {
-            // Si le parsing de la date échoue ou si c'est expiré
             throw new Exception("Token invalide : " + e.getMessage());
         }
 

@@ -1,10 +1,10 @@
 package com.gatcha.player.service;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
 import com.gatcha.player.model.Player;
 import com.gatcha.player.repository.PlayerRepository;
-import org.springframework.beans.factory.annotation.Autowired;import org.springframework.stereotype.Service;
-
-import java.util.Optional;
 
 @Service
 public class PlayerService {
@@ -56,11 +56,10 @@ public class PlayerService {
         throw new Exception("Niveau max atteint !");
     }
 
-    // --- Logique privée de montée de niveau ---
+    // --- Logique de montée de niveau ---
     private void levelUpLogic(Player player) {
-        // 1. On consomme l'XP (L'excédent est gardé, ou reset à 0 selon ta règle ?)
-        // Ta règle disait : "reset l'expérience". Donc on remet à 0.
-        player.setExperience(0.0);
+        // 1. On consomme l'XP
+        player.setExperience(player.getExperience() - player.getXpThreshold());
 
         // 2. On augmente le niveau
         player.setLevel(player.getLevel() + 1);

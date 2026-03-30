@@ -1,0 +1,8 @@
+com\gatcha\player\service\PlayerService.class
+com\gatcha\player\PlayerServiceApplication.class
+com\gatcha\player\model\XpRequest.class
+com\gatcha\player\model\Player.class
+com\gatcha\player\service\AuthValidationService.class
+com\gatcha\player\repository\PlayerRepository.class
+com\gatcha\player\controller\PlayerController.class
+com\gatcha\player\SwaggerConfig.class
