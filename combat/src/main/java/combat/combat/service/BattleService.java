@@ -53,6 +53,11 @@ public class BattleService {
         int hp1 = m1.getHp();
         int hp2 = m2.getHp();
         
+        // --- CRÉATION DES NOMS D'AFFICHAGE FORMATÉS ---
+        // Ex: "Niv 5 - Dragon - Player123"
+        String m1DisplayName = "Niv " + m1.getLevel() + " - " + m1.getTemplateId() + " - " + m1.getOwnerUsername();
+        String m2DisplayName = "Niv " + m2.getLevel() + " - " + m2.getTemplateId() + " - " + m2.getOwnerUsername();
+
         // Initialisation des cooldowns basée sur le numéro du skill
         Map<String, Integer> cd1 = initCooldowns(m1.getSkills());
         Map<String, Integer> cd2 = initCooldowns(m2.getSkills());
@@ -60,16 +65,16 @@ public class BattleService {
         int turn = 1;
         while (hp1 > 0 && hp2 > 0 && turn < 100) {
             // Tour Monstre 1
-            hp2 = executeTurn(turn, m1, m2, hp2, cd1, battle.getReplayLogs());
+            hp2 = executeTurn(turn, m1, m2, m1DisplayName, m2DisplayName, hp2, cd1, battle.getReplayLogs());
             if (hp2 <= 0) {
-                battle.setWinnerMonsterId(m1.getId());
+                battle.setWinnerMonsterId(m1DisplayName); // On sauvegarde le beau nom comme vainqueur
                 break;
             }
 
             // Tour Monstre 2
-            hp1 = executeTurn(turn, m2, m1, hp1, cd2, battle.getReplayLogs());
+            hp1 = executeTurn(turn, m2, m1, m2DisplayName, m1DisplayName, hp1, cd2, battle.getReplayLogs());
             if (hp1 <= 0) {
-                battle.setWinnerMonsterId(m2.getId());
+                battle.setWinnerMonsterId(m2DisplayName); // On sauvegarde le beau nom comme vainqueur
                 break;
             }
             turn++;
@@ -86,7 +91,8 @@ public class BattleService {
         return battleRepository.save(battle);
     }
 
-    private int executeTurn(int turn, MonsterDTO attacker, MonsterDTO defender, int defenderHp, Map<String, Integer> cooldowns, List<BattleStep> logs) {
+    // Mise à jour de la signature : Ajout de attackerName et defenderName
+    private int executeTurn(int turn, MonsterDTO attacker, MonsterDTO defender, String attackerName, String defenderName, int defenderHp, Map<String, Integer> cooldowns, List<BattleStep> logs) {
         // 1. Décrémentation des cooldowns
         cooldowns.remove(null); 
         cooldowns.replaceAll((k, v) -> Math.max(0, v - 1));
@@ -94,7 +100,6 @@ public class BattleService {
         List<SkillDTO> allSkills = attacker.getSkills() != null ? attacker.getSkills() : new ArrayList<>();
         
         // 2. Filtrer les skills utilisables (CD à 0)
-        // Note: On utilise le numéro (num) comme identifiant unique
         List<SkillDTO> availableSkills = allSkills.stream()
                 .filter(s -> cooldowns.getOrDefault(String.valueOf(s.getNum()), 0) == 0)
                 .collect(Collectors.toList());
@@ -127,7 +132,7 @@ public class BattleService {
             cooldowns.put(skillKey, chosenSkill.getCooldown());
         }
 
-        // --- 3. CALCUL DES DÉGÂTS (CORRIGÉ) ---
+        // --- 3. CALCUL DES DÉGÂTS ---
         String statName = "atk";
         double multiplier = 1.0;
 
@@ -149,10 +154,12 @@ public class BattleService {
         Map<String, Integer> safeCdSnapshot = new HashMap<>(cooldowns);
         safeCdSnapshot.remove(null);
 
+        // Utilisation de attackerName (formaté) au lieu de attacker.getId()
         String desc = String.format("Tour %d : %s utilise %s ! Scaling %s (x%.2f). Dégâts : %d. PV restants : %d", 
-                        turn, attacker.getId(), displayName, statName, multiplier, finalDamage, defenderHp);
+                        turn, attackerName, displayName, statName, multiplier, finalDamage, defenderHp);
 
-        logs.add(new BattleStep(turn, attacker.getId(), displayName, finalDamage, defenderHp, safeCdSnapshot, desc));
+        // Sauvegarde de l'étape avec le nom formaté
+        logs.add(new BattleStep(turn, attackerName, displayName, finalDamage, defenderHp, safeCdSnapshot, desc));
 
         return defenderHp;
     }

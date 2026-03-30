@@ -1,12 +1,14 @@
 package combat.combat.dto;
 
-import lombok.Data;
 import java.util.List;
+
+import lombok.Data;
 
 @Data
 public class MonsterDTO {
     private String id;
-    private String templateId; // Pour retrouver le nom ou l'image côté front
+    private String ownerUsername; // <-- Ajout de ce champ pour récupérer le nom du joueur
+    private String templateId; 
     private int hp;
     private int atk;
     private int def;

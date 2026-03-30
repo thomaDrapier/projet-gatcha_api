@@ -74,4 +74,18 @@ public class BattleController {
     public ResponseEntity<List<Battle>> getBattleHistory() {
         return ResponseEntity.ok(battleRepository.findAll());
     }
+
+    // Récupère juste la liste pour le menu déroulant
+    @GetMapping("/history")
+    public List<Battle> getAllBattles() {
+        return battleRepository.findAll(); 
+    }
+
+    // Récupère un combat spécifique avec tous ses logs
+    @GetMapping("/{id}")
+    public ResponseEntity<Battle> getBattleById(@PathVariable String id) {
+        return battleRepository.findById(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
 }
