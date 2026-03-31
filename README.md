@@ -22,6 +22,8 @@ Lors de la connexion, un token crypté est généré et stocké en base de donn�
 * **Format** : Une fois décrypté, le token suit le format `NOM-AAAA/MM/JJ-HH:MM:ss`.
 * **Validation** : Le service décrypte le jeton pour vérifier son format et sa validité temporelle (TTL).
 
+![Texte descriptif](images/user.png)
+
 **Routes du service :**
 * `/register` : Inscription d'un nouvel utilisateur.
 * `/login` : Authentification et génération du token.
