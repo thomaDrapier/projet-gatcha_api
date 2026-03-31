@@ -7,6 +7,10 @@ import java.util.Map;
 import java.util.Random;
 import java.util.stream.Collectors;
 
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -30,13 +34,26 @@ public class BattleService {
         this.restTemplate = new RestTemplate();
     }
 
-    public Battle startBattle(String monster1Id, String monster2Id) throws Exception {
+    // --- CORRECTION : Ajout du paramètre "token" ---
+    // ... (début du fichier identique) ...
+
+    public Battle startBattle(String monster1Id, String monster2Id, String token) throws Exception {
         System.out.println("[BATTLE] Tentative de combat entre " + monster1Id + " et " + monster2Id);
 
         MonsterDTO m1, m2;
         try {
-            m1 = restTemplate.getForObject(MONSTER_API_URL + monster1Id, MonsterDTO.class);
-            m2 = restTemplate.getForObject(MONSTER_API_URL + monster2Id, MonsterDTO.class);
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("Authorization", token);
+            HttpEntity<Void> entity = new HttpEntity<>(headers);
+
+            ResponseEntity<MonsterDTO> res1 = restTemplate.exchange(
+                MONSTER_API_URL + monster1Id, HttpMethod.GET, entity, MonsterDTO.class);
+            m1 = res1.getBody();
+
+            ResponseEntity<MonsterDTO> res2 = restTemplate.exchange(
+                MONSTER_API_URL + monster2Id, HttpMethod.GET, entity, MonsterDTO.class);
+            m2 = res2.getBody();
+
         } catch (Exception e) {
             throw new Exception("Impossible de contacter le service Monstre : " + e.getMessage());
         }
@@ -44,6 +61,11 @@ public class BattleService {
         if (m1 == null || m2 == null) {
             throw new Exception("Un des monstres est introuvable");
         }
+
+        if (m1.getHp() <= 0) m1.setHp(100);
+        if (m2.getHp() <= 0) m2.setHp(100);
+        if (m1.getAtk() <= 0) m1.setAtk(10);
+        if (m2.getAtk() <= 0) m2.setAtk(10);
 
         Battle battle = new Battle();
         battle.setMonster1Id(monster1Id);
@@ -53,53 +75,47 @@ public class BattleService {
         int hp1 = m1.getHp();
         int hp2 = m2.getHp();
         
-        // --- CRÉATION DES NOMS D'AFFICHAGE FORMATÉS ---
-        // Ex: "Niv 5 - Dragon - Player123"
         String m1DisplayName = "Niv " + m1.getLevel() + " - " + m1.getTemplateId() + " - " + m1.getOwnerUsername();
         String m2DisplayName = "Niv " + m2.getLevel() + " - " + m2.getTemplateId() + " - " + m2.getOwnerUsername();
 
-        // Initialisation des cooldowns basée sur le numéro du skill
         Map<String, Integer> cd1 = initCooldowns(m1.getSkills());
         Map<String, Integer> cd2 = initCooldowns(m2.getSkills());
 
         int turn = 1;
         while (hp1 > 0 && hp2 > 0 && turn < 100) {
-            // Tour Monstre 1
-            hp2 = executeTurn(turn, m1, m2, m1DisplayName, m2DisplayName, hp2, cd1, battle.getReplayLogs());
+            // CORRECTION : On passe m1.getId()
+            hp2 = executeTurn(turn, m1, m2, m1.getId(), m1DisplayName, m2DisplayName, hp2, cd1, battle.getReplayLogs());
             if (hp2 <= 0) {
-                battle.setWinnerMonsterId(m1DisplayName); // On sauvegarde le beau nom comme vainqueur
+                battle.setWinnerMonsterId(m1DisplayName);
                 break;
             }
 
-            // Tour Monstre 2
-            hp1 = executeTurn(turn, m2, m1, m2DisplayName, m1DisplayName, hp1, cd2, battle.getReplayLogs());
+            // CORRECTION : On passe m2.getId()
+            hp1 = executeTurn(turn, m2, m1, m2.getId(), m2DisplayName, m1DisplayName, hp1, cd2, battle.getReplayLogs());
             if (hp1 <= 0) {
-                battle.setWinnerMonsterId(m2DisplayName); // On sauvegarde le beau nom comme vainqueur
+                battle.setWinnerMonsterId(m2DisplayName);
                 break;
             }
             turn++;
         }
 
-        // --- SÉCURITÉ CRITIQUE POUR MONGODB ---
         for (BattleStep step : battle.getReplayLogs()) {
             if (step.getCooldowns() != null) {
                 step.getCooldowns().remove(null);
             }
         }
 
-        System.out.println("[BATTLE] Combat terminé. Sauvegarde en cours...");
+        System.out.println("[BATTLE] Combat terminé en " + turn + " tours. Sauvegarde...");
         return battleRepository.save(battle);
     }
 
-    // Mise à jour de la signature : Ajout de attackerName et defenderName
-    private int executeTurn(int turn, MonsterDTO attacker, MonsterDTO defender, String attackerName, String defenderName, int defenderHp, Map<String, Integer> cooldowns, List<BattleStep> logs) {
-        // 1. Décrémentation des cooldowns
+    // CORRECTION : Ajout du paramètre attackerId
+    private int executeTurn(int turn, MonsterDTO attacker, MonsterDTO defender, String attackerId, String attackerName, String defenderName, int defenderHp, Map<String, Integer> cooldowns, List<BattleStep> logs) {
         cooldowns.remove(null); 
         cooldowns.replaceAll((k, v) -> Math.max(0, v - 1));
 
         List<SkillDTO> allSkills = attacker.getSkills() != null ? attacker.getSkills() : new ArrayList<>();
         
-        // 2. Filtrer les skills utilisables (CD à 0)
         List<SkillDTO> availableSkills = allSkills.stream()
                 .filter(s -> cooldowns.getOrDefault(String.valueOf(s.getNum()), 0) == 0)
                 .collect(Collectors.toList());
@@ -109,30 +125,23 @@ public class BattleService {
         String skillKey;
 
         if (availableSkills.isEmpty()) {
-            // --- ATTAQUE DE SECOURS ---
             chosenSkill = new SkillDTO();
             chosenSkill.setNum(-1);
             chosenSkill.setDmg(10);
-            
             SkillRatio fallbackRatio = new SkillRatio();
             fallbackRatio.setStat("atk");
             fallbackRatio.setPercent(100);
             chosenSkill.setRatio(fallbackRatio);
-            
             chosenSkill.setCooldown(0);
             displayName = "Attaque de base";
             skillKey = "base";
         } else {
-            // --- UTILISATION D'UN VRAI SKILL ---
             chosenSkill = availableSkills.get(random.nextInt(availableSkills.size()));
             displayName = "Skill " + chosenSkill.getNum();
             skillKey = String.valueOf(chosenSkill.getNum());
-            
-            // Activer le cooldown
             cooldowns.put(skillKey, chosenSkill.getCooldown());
         }
 
-        // --- 3. CALCUL DES DÉGÂTS ---
         String statName = "atk";
         double multiplier = 1.0;
 
@@ -142,24 +151,19 @@ public class BattleService {
         }
 
         int statValue = getStatValue(attacker, statName);
-        
-        // Formule : dmg (base) + (stat * ratio)
         int rawDamage = (int) (chosenSkill.getDmg() + (statValue * multiplier));
-        
-        // Réduction par la défense adverse (min 1 dégât)
         int finalDamage = Math.max(1, rawDamage - (defender.getDef() / 2));
+        
         defenderHp = Math.max(0, defenderHp - finalDamage);
 
-        // --- 4. PRÉPARATION DU LOG ---
         Map<String, Integer> safeCdSnapshot = new HashMap<>(cooldowns);
         safeCdSnapshot.remove(null);
 
-        // Utilisation de attackerName (formaté) au lieu de attacker.getId()
         String desc = String.format("Tour %d : %s utilise %s ! Scaling %s (x%.2f). Dégâts : %d. PV restants : %d", 
                         turn, attackerName, displayName, statName, multiplier, finalDamage, defenderHp);
 
-        // Sauvegarde de l'étape avec le nom formaté
-        logs.add(new BattleStep(turn, attackerName, displayName, finalDamage, defenderHp, safeCdSnapshot, desc));
+        // CORRECTION : On insère l'attackerId dans la création du log
+        logs.add(new BattleStep(turn, attackerId, attackerName, displayName, finalDamage, defenderHp, safeCdSnapshot, desc));
 
         return defenderHp;
     }
@@ -178,7 +182,6 @@ public class BattleService {
         Map<String, Integer> cds = new HashMap<>();
         if (skills != null) {
             for (SkillDTO s : skills) {
-                // On initialise le CD à 0 pour chaque numéro de skill
                 cds.put(String.valueOf(s.getNum()), 0);
             }
         }

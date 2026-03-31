@@ -7,6 +7,7 @@ import lombok.Data;
 @Data // Génère automatiquement Getters, Setters, toString
 public class BattleStep {
     private int turn;
+    private String attackerId; // --- NOUVEAU : L'ID unique du monstre ---
     private String attackerName;
     private String skillName;
     private int damage;
@@ -17,10 +18,11 @@ public class BattleStep {
     // Constructeur vide (Obligatoire pour MongoDB/JSON)
     public BattleStep() {}
 
-    // Constructeur complet (Utilisé par BattleService)
-    public BattleStep(int turn, String attackerName, String skillName, int damage, 
+    // Constructeur complet mis à jour
+    public BattleStep(int turn, String attackerId, String attackerName, String skillName, int damage, 
                       int targetRemainingHp, Map<String, Integer> cooldowns, String description) {
         this.turn = turn;
+        this.attackerId = attackerId; // On sauvegarde l'ID
         this.attackerName = attackerName;
         this.skillName = skillName;
         this.damage = damage;

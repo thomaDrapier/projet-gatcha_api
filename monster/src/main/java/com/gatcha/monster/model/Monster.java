@@ -14,12 +14,14 @@ import lombok.Data;
 public class Monster {
     @Id
     private String id;
-    private String ownerUsername; // Lien avec le joueur [cite: 221, 268]
+    private String ownerUsername; // Lien avec le joueur
     private String element;
-    private int level; // Commence au niveau 1 [cite: 256]
-    private double experience;
+    private int level; // Commence au niveau 1
+    
+    // --- MODIFICATIONS ICI ---
+    private int xp; // On passe en 'int' (entier) et on le renomme 'xp'
     private String templateId;
-    private int unspentSkillPoints; // Points gagnés à chaque niveau, prêts à être distribués
+    private int skillPoints; // On le renomme 'skillPoints' pour correspondre au Service
     
     // Stats actuelles
     private int hp;

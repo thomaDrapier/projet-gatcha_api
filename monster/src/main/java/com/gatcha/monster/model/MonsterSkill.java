@@ -4,10 +4,9 @@ import lombok.Data;
 
 @Data
 public class MonsterSkill {
-    private int num;
-    private int dmg; 
-    private SkillRatio ratio; 
-    private int cooldown;
-    private int lvlMax;
-    private int currentLevel; 
+    private int num;         // Doit correspondre à "num" dans ton JSON
+    private int dmg;         // Doit correspondre à "dmg"
+    private SkillRatio ratio; // Doit correspondre à l'objet "ratio"
+    private int cooldown;    // Doit correspondre à "cooldown"
+    private int lvlMax;      // Doit correspondre à "lvlMax"
 }

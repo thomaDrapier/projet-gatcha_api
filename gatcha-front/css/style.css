@@ -426,3 +426,87 @@ button:hover { background: var(--primary); color: #000; box-shadow: 0 0 15px var
     from { opacity: 0; transform: translateY(10px) scale(0.95); }
     to { opacity: 1; transform: translateY(0) scale(1); }
 }
+
+.battle-arena {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 15px;
+    margin-bottom: 20px;
+}
+
+.fighter {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 40%;
+    transition: transform 0.2s;
+}
+
+.monster-img {
+    height: 120px;
+    object-fit: contain;
+    margin: 10px 0;
+    filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.3));
+}
+
+.hp-container {
+    width: 100%;
+    background: #333;
+    height: 20px;
+    border-radius: 10px;
+    position: relative;
+    overflow: hidden;
+    border: 2px solid #111;
+}
+
+.hp-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #ff4d4d, #ff8080);
+    transition: width 0.4s ease-out;
+}
+
+.hp-text {
+    position: absolute;
+    width: 100%;
+    text-align: center;
+    font-size: 0.75rem;
+    font-weight: bold;
+    color: white;
+    line-height: 18px;
+    text-shadow: 1px 1px 2px black;
+}
+
+.fighter-info {
+    text-align: center;
+    font-size: 0.9rem;
+}
+
+.owner-name {
+    display: block;
+    font-size: 0.7rem;
+    color: #aaa;
+}
+
+.vs-badge {
+    font-size: 2rem;
+    font-weight: bold;
+    font-style: italic;
+    color: var(--primary);
+    text-shadow: 0 0 10px var(--primary);
+}
+
+/* Animation de dégâts */
+.shake {
+    animation: shakeAnim 0.4s;
+}
+
+@keyframes shakeAnim {
+    0% { transform: translateX(0); }
+    25% { transform: translateX(-10px); }
+    50% { transform: translateX(10px); }
+    75% { transform: translateX(-10px); }
+    100% { transform: translateX(0); }
+}

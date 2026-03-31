@@ -13,7 +13,7 @@ services:
   mongo-invocations: 
     image: mongo:latest
     ports:
-      - "27019:27019"
+      - "27019:27017"
 
   mongo-monster:
     image: mongo:latest

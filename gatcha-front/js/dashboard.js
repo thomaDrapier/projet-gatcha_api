@@ -119,7 +119,10 @@ window.openProfileModal = function(charName) {
     if (xpPercentage > 100) xpPercentage = 100;
 
     const monsterCount = data.monsters ? data.monsters.length : 0;
+    const maxCapacity = 2 + level; 
     const totalBattles = data.totalBattles || 0;
+
+    const capacityColor = monsterCount >= maxCapacity ? "#ff4d4d" : "inherit";
 
     modalContent.innerHTML = `
         <h2 class="modal-title">Fiche de <span>${data.username}</span></h2>
@@ -129,7 +132,7 @@ window.openProfileModal = function(charName) {
                 <p>⚔️ Combats : <strong>${totalBattles}</strong></p>
             </div>
             <div class="profile-info-block">
-                <p>🐉 Monstres : <strong>${monsterCount}</strong></p>
+                <p>🐉 Monstres : <strong style="color: ${capacityColor};">${monsterCount} / ${maxCapacity}</strong></p>
                 <p>👤 Compte : <strong>${currentUser}</strong></p>
             </div>
         </div>
@@ -189,7 +192,7 @@ window.openMonstersModal = async function(charName) {
 // ==========================================
 // INVOCATION ET TIMERS
 // ==========================================
-const COOLDOWN_MS = 10000;
+const COOLDOWN_MS = 5000;
 function updateDashboardTimers() {
     myCharacters.forEach((name, i) => {
         const btn = document.getElementById(`btn-summon-${i}`);
@@ -206,13 +209,42 @@ function updateDashboardTimers() {
 setInterval(updateDashboardTimers, 1000);
 
 window.executeSummon = async function(name, id) {
-    const res = await fetchApi(`${INVOCATION_API}/${name}`, 'POST');
-    if (res && res.status === 200) {
-        const t = monsterTemplates[res.data.templateId] || monsterTemplates.default;
-        monsterRevealArea.innerHTML = `<div class="monster-card glass"><h3>${t.name}</h3><img src="${t.img}" width="150"><button onclick="closeRevealModal('${name}')" class="action-btn">Génial !</button></div>`;
-        monsterRevealArea.classList.remove('hidden'); summonModal.classList.remove('hidden');
-        if (loadedData[name]) loadedData[name].monsters.push(res.data.instanceId);
-        fillArenaDropdowns(); 
+    const btn = document.getElementById(id);
+    const originalText = btn.innerHTML;
+    btn.innerHTML = "⏳ Invocation...";
+    btn.disabled = true;
+
+    try {
+        const res = await fetchApi(`${INVOCATION_API}/${name}`, 'POST');
+        
+        if (res && res.status === 200) {
+            const t = monsterTemplates[res.data.templateId] || monsterTemplates.default;
+            monsterRevealArea.innerHTML = `
+                <div class="monster-card glass">
+                    <h3>${t.name}</h3>
+                    <img src="${t.img}" width="150">
+                    <button onclick="closeRevealModal('${name}')" class="action-btn">Génial !</button>
+                </div>`;
+            monsterRevealArea.classList.remove('hidden'); 
+            summonModal.classList.remove('hidden');
+            
+            if (loadedData[name]) loadedData[name].monsters.push(res.data.instanceId);
+            fillArenaDropdowns(); 
+
+        } else if (res && res.status === 400) {
+            const errorMsg = res.data.message || res.data || "Inventaire plein !";
+            alert("❌ Invocation impossible :\n" + errorMsg);
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        } else {
+            alert("Erreur du serveur d'invocation.");
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    } catch (e) {
+        console.error("Erreur d'invocation:", e);
+        btn.innerHTML = originalText;
+        btn.disabled = false;
     }
 };
 
@@ -254,7 +286,12 @@ window.startBattle = async function() {
     btn.innerText = "Calcul...";
 
     try {
-        const battleRes = await fetch(`${COMBAT_API}/start?monster1Id=${m1Id}&monster2Id=${m2Id}`, { method: 'POST' });
+        const battleRes = await fetch(`${COMBAT_API}/start?monster1Id=${m1Id}&monster2Id=${m2Id}`, { 
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${currentToken}`
+            }
+        });
 
         if (!battleRes.ok) {
             const errorText = await battleRes.text();
@@ -291,55 +328,82 @@ window.startBattle = async function() {
 
 async function animateBattle(battle, m1, m2) {
     const logs = document.getElementById('battle-logs');
+    const arenaDiv = document.querySelector('.battle-arena'); 
+
+    // SECURITÉ : Si l'arène n'est pas dans le HTML, on s'arrête proprement
+    if (!arenaDiv) {
+        console.error("Erreur: L'élément HTML '.battle-arena' est introuvable !");
+        return; 
+    }
+
     logs.innerHTML = "";
     
-    // --- CORRECTION : Création des noms formatés pour l'interface ---
-    const m1DisplayName = `Niv ${m1.level} - ${m1.templateId} - ${m1.ownerUsername}`;
-    const m2DisplayName = `Niv ${m2.level} - ${m2.templateId} - ${m2.ownerUsername}`;
+    const t1 = monsterTemplates[m1.templateId] || monsterTemplates.default;
+    const t2 = monsterTemplates[m2.templateId] || monsterTemplates.default;
 
-    document.getElementById('f1-name').innerText = m1DisplayName;
-    document.getElementById('f2-name').innerText = m2DisplayName;
+    // --- NOUVEAU VISUEL DE L'ARÈNE ---
+    arenaDiv.innerHTML = `
+        <div class="fighter" id="fighter-1">
+            <div class="fighter-info">
+                <span class="fighter-name" style="color:var(--primary); font-weight:bold;">Niv ${m1.level} - ${t1.name}</span>
+                <span class="owner-name">(${m1.ownerUsername})</span>
+            </div>
+            <img src="${t1.img}" class="monster-img">
+            <div class="hp-container">
+                <div id="f1-hp-bar" class="hp-bar" style="width: 100%;"></div>
+                <div id="f1-hp-text" class="hp-text">${m1.hp}/${m1.hp} HP</div>
+            </div>
+        </div>
 
-    // --- CORRECTION : Initialisation visuelle des HPs au max ---
-    document.getElementById('f1-hp-bar').style.width = "100%";
-    document.getElementById('f1-hp-text').innerText = `${m1.hp}/${m1.hp} HP`;
-    document.getElementById('f2-hp-bar').style.width = "100%";
-    document.getElementById('f2-hp-text').innerText = `${m2.hp}/${m2.hp} HP`;
+        <div class="vs-badge">VS</div>
 
+        <div class="fighter" id="fighter-2">
+            <div class="fighter-info">
+                <span class="fighter-name" style="color:var(--danger); font-weight:bold;">Niv ${m2.level} - ${t2.name}</span>
+                <span class="owner-name">(${m2.ownerUsername})</span>
+            </div>
+            <img src="${t2.img}" class="monster-img">
+            <div class="hp-container">
+                <div id="f2-hp-bar" class="hp-bar" style="width: 100%;"></div>
+                <div id="f2-hp-text" class="hp-text">${m2.hp}/${m2.hp} HP</div>
+            </div>
+        </div>
+    `;
+
+    // Boucle de combat
     for (const step of battle.replayLogs) {
-        await new Promise(r => setTimeout(r, 1000));
+        await new Promise(r => setTimeout(r, 800));
         
-        // Un peu de cosmétique pour l'arène
         let logDesc = step.description.replace("Tour ", "T");
         logDesc = logDesc.replace(/Dégâts : (\d+)/, 'Dégâts : <b style="color: #ff4d4d;">$1</b>');
 
-        logs.innerHTML += `<div style="margin-bottom:5px; border-bottom: 1px solid #333; padding-bottom: 5px;">> <span style="color:var(--primary)">T${step.turn}</span>: ${logDesc}</div>`;
+        logs.innerHTML += `<div class="log-entry">> <span class="log-turn">T${step.turn}</span>: ${logDesc}</div>`;
         logs.scrollTop = logs.scrollHeight;
 
-        // --- CORRECTION : On compare le nom complet avec celui formaté ---
-        if (step.attackerName === m1DisplayName) {
-            // C'est M1 qui attaque, donc M2 perd de la vie
+        const isM1Attacking = step.attackerId ? (step.attackerId === m1.id) : (step.attackerName.includes(m1.ownerUsername));
+
+        if (isM1Attacking) {
             const pct = (step.targetRemainingHp / m2.hp) * 100;
-            document.getElementById('f2-hp-bar').style.width = pct + "%";
+            document.getElementById('f2-hp-bar').style.width = Math.max(0, pct) + "%";
             document.getElementById('f2-hp-text').innerText = `${Math.max(0, step.targetRemainingHp)}/${m2.hp} HP`;
+            document.getElementById('fighter-2').classList.add('shake');
+            setTimeout(() => document.getElementById('fighter-2').classList.remove('shake'), 400);
         } else {
-            // C'est M2 qui attaque, donc M1 perd de la vie
             const pct = (step.targetRemainingHp / m1.hp) * 100;
-            document.getElementById('f1-hp-bar').style.width = pct + "%";
+            document.getElementById('f1-hp-bar').style.width = Math.max(0, pct) + "%";
             document.getElementById('f1-hp-text').innerText = `${Math.max(0, step.targetRemainingHp)}/${m1.hp} HP`;
+            document.getElementById('fighter-1').classList.add('shake');
+            setTimeout(() => document.getElementById('fighter-1').classList.remove('shake'), 400);
         }
     }
     document.getElementById('battle-status').innerText = "🏁 Combat Terminé !";
     document.getElementById('btn-fight').disabled = false;
     document.getElementById('btn-fight').innerText = "LANCER";
-
-    // Rafraîchir l'historique automatiquement !
     loadBattleHistory();
 }
 
-
 // ==========================================
-// HISTORIQUE DES COMBATS (VERSION CHAT BUBBLES)
+// HISTORIQUE DES COMBATS
 // ==========================================
 
 async function loadBattleHistory() {
@@ -350,7 +414,6 @@ async function loadBattleHistory() {
         
         listContainer.innerHTML = '';
 
-        // On crée un petit cache pour éviter de spammer l'API Monstre
         const monsterCache = {};
         const getMonster = async (id) => {
             if (monsterCache[id]) return monsterCache[id];
@@ -362,19 +425,16 @@ async function loadBattleHistory() {
                     return data;
                 }
             } catch(e) {}
-            return null; // Si le monstre a été supprimé
+            return null; 
         };
 
-        // On parcourt les combats du plus récent au plus ancien
         for (const b of battles.reverse()) {
             const date = new Date(b.battleDate).toLocaleString();
             const turns = b.replayLogs ? b.replayLogs.length : 0;
             
-            // 1. On récupère les vraies données des deux monstres
             const m1 = await getMonster(b.monster1Id);
             const m2 = await getMonster(b.monster2Id);
 
-            // 2. Fonction pour traduire les données en un joli nom : "Niv X - Nom - Joueur"
             const formatName = (m, fallbackId) => {
                 if (m) {
                     const t = monsterTemplates[m.templateId] || monsterTemplates.default;
@@ -386,15 +446,18 @@ async function loadBattleHistory() {
             const m1Name = formatName(m1, b.monster1Id);
             const m2Name = formatName(m2, b.monster2Id);
 
-            // 3. On traduit aussi le nom du vainqueur (qui était stocké "Niv 1 - 3 - tom")
             let winnerName = b.winnerMonsterId;
-            const parts = winnerName.split(' - ');
-            if (parts.length === 3) { // Si c'est bien le format du backend
-                const t = monsterTemplates[parts[1]] || monsterTemplates.default;
-                winnerName = `${parts[0]} - ${t.name} - ${parts[2]}`;
+
+            if (winnerName) { 
+                const parts = winnerName.split(' - ');
+                if (parts.length === 3) { 
+                    const t = monsterTemplates[parts[1]] || monsterTemplates.default;
+                    winnerName = `${parts[0]} - ${t.name} - ${parts[2]}`;
+                }
+            } else {
+                winnerName = "Match Nul / Inconnu"; 
             }
 
-            // 4. Création de la carte visuelle
             const card = document.createElement('div');
             card.className = 'battle-card';
             card.onclick = () => showBattleLogs(b.id);
@@ -422,7 +485,6 @@ async function loadBattleHistory() {
     }
 }
 
-// Fonction pour fermer le replay et revenir à la liste
 function closeReplay() {
     document.getElementById('battleLogContainer').style.display = 'none';
     document.getElementById('battleHistoryList').style.display = 'flex';
@@ -433,7 +495,6 @@ async function showBattleLogs(battleId) {
     const listContainer = document.getElementById('battleHistoryList');
     const arenaContent = document.getElementById('replay-arena-content');
 
-    // On cache la liste et on affiche la zone de replay
     listContainer.style.display = 'none';
     container.style.display = 'block';
     arenaContent.innerHTML = '<p style="text-align:center; color: var(--primary);">Chargement de la cassette...</p>';
@@ -456,7 +517,6 @@ async function showBattleLogs(battleId) {
         const m1BackendName = `Niv ${m1.level} - ${m1.templateId} - ${m1.ownerUsername}`;
         const m2BackendName = `Niv ${m2.level} - ${m2.templateId} - ${m2.ownerUsername}`;
 
-        // Construction de l'arène avec la nouvelle typographie pour les joueurs
         arenaContent.innerHTML = `
             <div style="background: #111; padding: 15px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #333; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -489,24 +549,20 @@ async function showBattleLogs(battleId) {
         const logsDiv = document.getElementById('replayLogsDiv');
 
         for (const step of battle.replayLogs) {
-            await new Promise(r => setTimeout(r, 600)); // Vitesse d'apparition des bulles
+            await new Promise(r => setTimeout(r, 600)); 
 
-            const isM1Attacking = step.attackerName === m1BackendName || step.attackerName === m1.id;
+            const isM1Attacking = step.attackerId ? (step.attackerId === m1.id) : (step.attackerName === m1BackendName || step.attackerName === m1.id);
             
-            // Format du texte dans la bulle
             const attackerStr = isM1Attacking ? `${t1.name}` : `${t2.name}`;
             const defenderStr = isM1Attacking ? `${t2.name}` : `${t1.name}`;
             const logText = `<b>${attackerStr}</b> attaque ${defenderStr} et inflige <b>${step.damage}</b> dégâts !`;
 
-            // Création de la bulle
             const bubble = document.createElement('div');
-            // Si M1 attaque, la bulle est à gauche (chat-left), sinon à droite (chat-right)
             bubble.className = `chat-bubble ${isM1Attacking ? 'chat-left' : 'chat-right'}`;
             bubble.innerHTML = `<span style="font-size: 0.7rem; opacity: 0.7; display: block; margin-bottom: 3px;">Tour ${step.turn}</span> ${logText}`;
             
             logsDiv.appendChild(bubble);
 
-            // Mise à jour visuelle des barres de vie
             if (isM1Attacking) {
                 const pct = Math.max(0, (step.targetRemainingHp / m2.hp) * 100);
                 document.getElementById('replay-m2-hp').style.width = pct + "%";
@@ -515,7 +571,6 @@ async function showBattleLogs(battleId) {
                 document.getElementById('replay-m1-hp').style.width = pct + "%";
             }
 
-            // Scroll auto vers le bas du chat
             logsDiv.scrollTop = logsDiv.scrollHeight;
         }
 
@@ -524,6 +579,7 @@ async function showBattleLogs(battleId) {
         arenaContent.innerHTML = `<p style="text-align:center; color:#ff4d4d;">Erreur lors du chargement de la vidéo.</p>`;
     }
 }
+
 // Initialisation
 renderCharacters();
 fillArenaDropdowns();
