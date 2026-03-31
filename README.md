@@ -1,108 +1,69 @@
 Monster Battle Platform
 
-Ce projet utilise majoritairement du code généré avec l’aide d’une IA, mais la conception, les choix techniques et la logique restent très largement issus d’un travail personnel.
+Ce projet utilise majoritairement du code généré avec l’aide d’une IA, mais la conception et la logique restent très largement issues de choix personnels.
 
-Il s’agit d’une plateforme de combat de monstres basée sur une architecture microservices.
+Mon projet est une plateforme de combat de monstres basée sur une architecture microservices.
 
-Architecture technique
+Architecture Technique
 
 Le projet est découpé en plusieurs microservices conteneurisés avec Docker Compose.
 
 Auth Service
 
-Ce service gère l’authentification des utilisateurs.
+Ce service gère l'inscription, la connexion et la validation des jetons de sécurité.
 
-Fonctionnalités principales :
+Le fichier CryptoService.java contient les fonctions permettant de gérer plusieurs aspects liés à la sécurité : le hash du mot de passe, la génération d’un token utilisé par les autres APIs, la vérification du mot de passe, ainsi que des méthodes de chiffrement et de déchiffrement.
 
-Inscription
-Connexion
-Validation des tokens
+J’ai choisi d’implémenter un système de chiffrement du token.
 
-Le fichier CryptoService.java regroupe les fonctionnalités suivantes :
+Lorsqu’un utilisateur se connecte, un token chiffré est généré puis stocké en base de données. Pour vérifier sa validité, le token est ensuite déchiffré. Une fois en clair, il respecte le format suivant :
+NOM-AAAA/MM/JJ-HH:MM:ss.
 
-Hash du mot de passe
-Génération de token utilisé par les autres services
-Vérification du mot de passe
-Chiffrement et déchiffrement
+Le service vérifie alors si le token est toujours valide, avec une durée de vie limitée à 15 minutes.
 
-Un mécanisme de chiffrement du token a été mis en place.
+Les routes du service sont les suivantes :
 
-Lors de la connexion :
-
-Un token chiffré est généré
-Il est stocké en base de données
-
-Pour valider un token :
-
-Il est déchiffré
-Il respecte un format de type NOM-AAAA/MM/JJ-HH:MM:ss
-Le service vérifie sa validité avec une durée de vie limitée à 15 minutes
-
-Routes disponibles :
-
-/register : inscription
+/register : processus d’inscription d’un utilisateur
 /login : connexion
 /validate : validation d’un token
 Player Service
 
-Ce service gère les informations liées aux joueurs :
+Le Player Service gère le profil de chaque joueur : expérience, liste de monstres, date de création, niveau, nombre de combats, etc.
 
-Expérience
-Liste de monstres
-Date de création
-Niveau
-Statistiques de combat
-
-Les différentes routes sont disponibles via la documentation OpenAPI du service.
+Le controller expose de nombreuses routes permettant d’effectuer différentes actions. Elles sont toutes disponibles via OpenAPI à l’adresse suivante : XXXXXX.
 
 Monster Service
 
-Ce service est responsable de la gestion des monstres.
-
-Fonctionnalités principales :
-
-Création de monstres
-Récupération des informations
-Gestion de l’expérience
-
-Toutes les opérations liées aux monstres passent par ce service.
+Le Monster Service est responsable de la gestion des monstres. Toutes les actions relatives aux monstres passent par ce service, que ce soit l’ajout d’expérience, la récupération des informations ou encore la création de nouveaux monstres.
 
 Invocation Service
 
-Ce service permet d’invoquer des monstres.
+Cette API est appelée directement par le joueur lorsqu’il souhaite invoquer un monstre.
 
-Fonctionnement :
+La base de données est volontairement simple et ne contient que les 4 monstres fournis dans le fichier JSON du TP.
 
-Vérification de la limite d’inventaire
-Tirage aléatoire d’un monstre depuis une base contenant les 4 monstres fournis
-Le tirage respecte un système de probabilités
+L’invocation se déroule en plusieurs étapes. Le service commence par vérifier la limite d’inventaire du joueur. Ensuite, un tirage aléatoire est effectué pour sélectionner un monstre depuis la base de données. Ce tirage respecte un système de probabilités basé sur un loot rate.
 
-Un test est disponible ici :
+Il est possible de vérifier ce fonctionnement en exécutant le fichier de test suivant :
 gatcha/invocations/src/test/java/com/gatcha/invocations/InvocationService.java
 
 Combat Service
 
-Ce service gère la logique de combat ainsi que l’enregistrement des actions pour permettre un replay.
+Le service de combat gère à la fois la logique des affrontements et l’enregistrement des actions afin de permettre un replay complet.
 
 Chaque combat est enregistré en base de données et peut être rejoué.
 
 Logique de combat
 
-Le système repose sur des affrontements automatisés au tour par tour entre deux créatures.
+Le système gère des affrontements automatisés au tour par tour entre deux créatures.
 
-Initialisation :
+Lors de l’initialisation, les statistiques des monstres (PV, Attaque, Défense) sont récupérées via l’API Monster, et les temps de recharge des compétences sont mis à zéro.
 
-Les statistiques (PV, Attaque, Défense) sont récupérées via le Monster Service
-Les temps de recharge des compétences sont réinitialisés
+Le combat se déroule ensuite tour par tour. Les deux monstres attaquent alternativement jusqu’à ce que l’un tombe à 0 PV, ou jusqu’à atteindre une limite de 100 tours.
 
-Déroulement :
+À chaque tour, le monstre choisit aléatoirement une compétence disponible. Si toutes les compétences sont en recharge, il effectue une attaque de base.
 
-Les monstres attaquent à tour de rôle
-Le combat se termine lorsqu’un monstre atteint 0 PV ou après 100 tours
-À chaque tour, une compétence disponible est choisie aléatoirement
-Si aucune compétence n’est disponible, une attaque de base est utilisée
-
-Calcul des dégâts :
+Le calcul des dégâts prend en compte la puissance du sort, un ratio basé sur une statistique précise (ATK, DEF, HP ou VIT), ainsi que la défense de l’adversaire :
 
 D
 e
@@ -127,7 +88,7 @@ a
 ts_Sort
 +
 (
-Stat
+Stat_Attaquant
 ×
 Ratio
 )
@@ -136,7 +97,7 @@ Ratio
 D
 e
 ˊ
-fense
+fense_Cible
 2
 )
 D
@@ -151,24 +112,14 @@ e
 g
 a
 ˆ
-ts_Sort+(Stat×Ratio))−
+ts_Sort+(Stat_Attaquant×Ratio))−
 2
 D
 e
 ˊ
-fense
+fense_Cible
 	​
 
 )
 
-Ce calcul prend en compte :
-
-La puissance du sort
-Une statistique du lanceur (ATK, DEF, HP ou VIT)
-La défense de la cible
-
-Fin de combat :
-
-L’expérience est distribuée aux monstres et aux joueurs
-Chaque action est enregistrée sous forme de BattleStep
-Cela permet de rejouer fidèlement le combat
+À l’issue du combat, l’expérience est distribuée aux monstres et aux joueurs. Chaque action est également enregistrée sous forme de BattleStep, ce qui permet de rejouer le combat de manière fidèle.
