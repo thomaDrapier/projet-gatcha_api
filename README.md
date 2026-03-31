@@ -1,56 +1,174 @@
-# 🐉 Gatcha Battle Microservices
+Monster Battle Platform
 
-Ce projet est une plateforme de combat de monstres basée sur une architecture microservices. Il permet de gérer l'authentification des dresseurs, l'invocation de monstres via un système de rareté, et des combats automatisés avec un système de replay.
+Ce projet utilise majoritairement du code généré avec l’aide d’une IA, mais la conception, les choix techniques et la logique restent très largement issus d’un travail personnel.
 
-## 🏗️ Architecture Technique
-Le projet est découpé en plusieurs microservices conteneurisés avec **Docker Compose** :
-* **Auth-Service** : Gère l'inscription, la connexion et la validation des jetons de sécurité.
-* **Player-Service** : Gère les profils des dresseurs, leur progression et leur inventaire de monstres.
-* **Monster-Service** : Gère les instances de monstres, leurs statistiques et leur montée en niveau.
-* **Invocation-Service** : Orchestre la création de nouveaux monstres via un système de tirage aléatoire.
-* **Combat-Service** : Exécute la logique des duels et archive l'historique des affrontements.
+Il s’agit d’une plateforme de combat de monstres basée sur une architecture microservices.
 
----
+Architecture technique
 
-## 1. Fonctionnalités Principales
-* **Système d'Invocation** : Permet de générer un monstre aléatoire pour un joueur. Une vérification de la capacité d'inventaire est effectuée (limite fixée à `2 + niveau du joueur`).
-* **Loot Rate Respecté** : Le tirage utilise un algorithme pondéré basé sur le `lootRate` défini dans les modèles de monstres pour garantir les probabilités de rareté.
-* **Combats entre Monstres** : Duel entre deux créatures avec calcul dynamique des dégâts basé sur leurs statistiques respectives.
-* **Système de Replay** : Chaque tour de combat est sauvegardé en base de données (`BattleStep`), permettant de rejouer l'animation complète du duel ultérieurement.
+Le projet est découpé en plusieurs microservices conteneurisés avec Docker Compose.
 
----
+Auth Service
 
-## 2. Logique de Combat (`Battle Engine`)
-Le moteur de combat gère des affrontements automatisés au tour par tour :
-* **Calcul des Dégâts** : La formule prend en compte les dégâts de base de la compétence, le ratio de la statistique associée (ATK, DEF, HP ou VIT) et la défense de la cible.
-    * *Formule* : `Dégâts = Max(1, (Dégâts_Base + Stat_Attaquant * Ratio) - (Défense_Cible / 2))`.
-* **Gestion des Cooldowns** : Les monstres choisissent aléatoirement parmi leurs compétences disponibles. Si une compétence est utilisée, elle entre en phase de récupération pour un nombre de tours défini.
-* **Attaque de Base** : En cas de compétences en cooldown, une attaque de base par défaut est déclenchée.
-* **Limites** : Le combat se termine lorsqu'un monstre n'a plus de points de vie ou après 100 tours.
+Ce service gère l’authentification des utilisateurs.
 
----
+Fonctionnalités principales :
 
-## 3. Logique d'Augmentation des Niveaux
-La progression est automatisée après chaque combat :
-* **Évolution des Monstres** :
-    * **XP Requis** : Le seuil pour monter de niveau est égal à `Niveau_Actuel * 1000`.
-    * **Gains** : Le vainqueur gagne 1000 XP et le perdant 300 XP (30%).
-    * **Statistiques** : À chaque montée de niveau, les HP, l'ATK, la DEF et la VIT augmentent de **10%**. Le monstre gagne également un point de compétence.
-* **Progression du Joueur** : Le dresseur gagne de l'expérience à chaque combat (100 XP par victoire, 30 XP par défaite), ce qui augmente son niveau global et sa capacité maximale de monstres.
+Inscription
+Connexion
+Validation des tokens
 
----
+Le fichier CryptoService.java regroupe les fonctionnalités suivantes :
 
-## 4. Service d'Authentification & Sécurité
-Le système assure la protection des données et l'intégrité des échanges entre microservices :
-* **Sécurité des Mots de Passe** : Utilisation de l'algorithme **SHA-256** pour hasher les mots de passe en base de données.
-* **Token AES Personnalisé** : Au lieu d'un simple UUID, le système génère un jeton crypté en **AES** (mode ECB, PKCS5Padding). Ce jeton contient le nom d'utilisateur et un horodatage précis.
-* **Validation Temporelle** : Les jetons sont valides pour une durée d'**une heure**. Passé ce délai, le service refuse la validation et demande une reconnexion.
-* **Communication Interne** : Les microservices valident systématiquement le jeton via l'endpoint `/auth/validate` pour sécuriser les opérations sensibles.
+Hash du mot de passe
+Génération de token utilisé par les autres services
+Vérification du mot de passe
+Chiffrement et déchiffrement
 
----
+Un mécanisme de chiffrement du token a été mis en place.
 
-## 🚀 Lancement Rapide
+Lors de la connexion :
 
-```bash
-# Construire et lancer tous les services
-docker-compose up --build
+Un token chiffré est généré
+Il est stocké en base de données
+
+Pour valider un token :
+
+Il est déchiffré
+Il respecte un format de type NOM-AAAA/MM/JJ-HH:MM:ss
+Le service vérifie sa validité avec une durée de vie limitée à 15 minutes
+
+Routes disponibles :
+
+/register : inscription
+/login : connexion
+/validate : validation d’un token
+Player Service
+
+Ce service gère les informations liées aux joueurs :
+
+Expérience
+Liste de monstres
+Date de création
+Niveau
+Statistiques de combat
+
+Les différentes routes sont disponibles via la documentation OpenAPI du service.
+
+Monster Service
+
+Ce service est responsable de la gestion des monstres.
+
+Fonctionnalités principales :
+
+Création de monstres
+Récupération des informations
+Gestion de l’expérience
+
+Toutes les opérations liées aux monstres passent par ce service.
+
+Invocation Service
+
+Ce service permet d’invoquer des monstres.
+
+Fonctionnement :
+
+Vérification de la limite d’inventaire
+Tirage aléatoire d’un monstre depuis une base contenant les 4 monstres fournis
+Le tirage respecte un système de probabilités
+
+Un test est disponible ici :
+gatcha/invocations/src/test/java/com/gatcha/invocations/InvocationService.java
+
+Combat Service
+
+Ce service gère la logique de combat ainsi que l’enregistrement des actions pour permettre un replay.
+
+Chaque combat est enregistré en base de données et peut être rejoué.
+
+Logique de combat
+
+Le système repose sur des affrontements automatisés au tour par tour entre deux créatures.
+
+Initialisation :
+
+Les statistiques (PV, Attaque, Défense) sont récupérées via le Monster Service
+Les temps de recharge des compétences sont réinitialisés
+
+Déroulement :
+
+Les monstres attaquent à tour de rôle
+Le combat se termine lorsqu’un monstre atteint 0 PV ou après 100 tours
+À chaque tour, une compétence disponible est choisie aléatoirement
+Si aucune compétence n’est disponible, une attaque de base est utilisée
+
+Calcul des dégâts :
+
+D
+e
+ˊ
+g
+a
+ˆ
+ts
+=
+max
+⁡
+(
+1
+,
+(
+D
+e
+ˊ
+g
+a
+ˆ
+ts_Sort
++
+(
+Stat
+×
+Ratio
+)
+)
+−
+D
+e
+ˊ
+fense
+2
+)
+D
+e
+ˊ
+g
+a
+ˆ
+ts=max(1,(D
+e
+ˊ
+g
+a
+ˆ
+ts_Sort+(Stat×Ratio))−
+2
+D
+e
+ˊ
+fense
+	​
+
+)
+
+Ce calcul prend en compte :
+
+La puissance du sort
+Une statistique du lanceur (ATK, DEF, HP ou VIT)
+La défense de la cible
+
+Fin de combat :
+
+L’expérience est distribuée aux monstres et aux joueurs
+Chaque action est enregistrée sous forme de BattleStep
+Cela permet de rejouer fidèlement le combat
