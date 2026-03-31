@@ -36,6 +36,7 @@ public class MonsterService {
         return monsterRepository.findAll();
     }
 
+    // Dans MonsterService.java
     public Monster addXp(String monsterId, int xpAmount) throws Exception {
         Monster monster = getMonsterById(monsterId);
         
@@ -43,10 +44,17 @@ public class MonsterService {
             throw new Exception("Monstre introuvable avec l'ID : " + monsterId);
         }
 
+        // --- NOUVEAU : Incrémenter le compteur de combats ---
+        if (monster.getTotalBattles() == null) {
+            monster.setTotalBattles(0);
+        }
+        monster.setTotalBattles(monster.getTotalBattles() + 1);
+        // ----------------------------------------------------
+
         int currentXp = monster.getXp() + xpAmount;
         int currentLevel = monster.getLevel();
         int xpRequired = currentLevel * 1000;
-
+        
         while (currentXp >= xpRequired) {
             currentXp -= xpRequired;
             currentLevel++;

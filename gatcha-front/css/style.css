@@ -571,3 +571,71 @@ button:hover { background: var(--primary); color: #000; box-shadow: 0 0 15px var
     from { opacity: 0; transform: translateX(-10px); }
     to { opacity: 1; transform: translateX(0); }
 }
+
+/* --- STYLE DE LA NOUVELLE ARÈNE --- */
+.arena-selection-container {
+    display: flex;
+    gap: 20px;
+    align-items: stretch;
+    margin-bottom: 20px;
+    background: rgba(0, 0, 0, 0.4);
+    padding: 20px;
+    border-radius: 12px;
+}
+.arena-column {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    padding: 15px;
+}
+.arena-vs-divider {
+    display: flex;
+    align-items: center;
+    font-size: 2rem;
+    font-weight: bold;
+    font-style: italic;
+    color: #fff;
+    text-shadow: 0 0 10px #ff4d4d;
+}
+.monster-select-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 250px;
+    overflow-y: auto;
+    padding-right: 5px;
+}
+/* Style des cartes de sélection */
+.monster-select-card {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    background: #1a1a1a;
+    padding: 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: 0.2s;
+}
+.monster-select-card:hover {
+    background: #2a2a2a;
+    transform: translateX(5px);
+}
+.monster-select-card.selected-1 {
+    border-color: var(--primary);
+    background: rgba(0, 212, 255, 0.15);
+}
+.monster-select-card.selected-2 {
+    border-color: var(--danger);
+    background: rgba(231, 76, 60, 0.15);
+}
+.monster-select-card.disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+    filter: grayscale(1);
+    transform: none;
+}
+.monster-select-card img { width: 45px; height: 45px; object-fit: contain; }
+.monster-select-info { display: flex; flex-direction: column; }
+.monster-select-name { font-weight: bold; color: #fff; font-size: 0.9rem; }
+.monster-select-owner { font-size: 0.75rem; color: #ffd700; margin-top: 2px; }

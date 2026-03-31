@@ -106,13 +106,22 @@ public class PlayerService {
     public Player processBattleResult(String username, double xpAmount) throws Exception {
         Player player = getPlayer(username);
         
+        // --- CORRECTION : Sécurisation pour les anciens joueurs ---
+        if (player.getTotalBattles() == null) {
+            player.setTotalBattles(0);
+        }
+        if (player.getExperience() == null) {
+            player.setExperience(0.0);
+        }
+        // ----------------------------------------------------------
+
         // 1. Incrémenter le nombre total de combats
         player.setTotalBattles(player.getTotalBattles() + 1);
         
         // 2. Ajouter l'XP
         player.setExperience(player.getExperience() + xpAmount);
 
-        // 3. Boucle de Level Up (réutilisation de ta logique)
+        // 3. Boucle de Level Up
         while (player.getExperience() >= player.getXpThreshold() && player.getLevel() < 50) {
             levelUpLogic(player);
         }

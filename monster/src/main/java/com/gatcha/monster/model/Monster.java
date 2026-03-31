@@ -30,4 +30,5 @@ public class Monster {
     private int vit;
     
     private List<MonsterSkill> skills;
+    private Integer totalBattles;
 }

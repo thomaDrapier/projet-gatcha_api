@@ -53,6 +53,7 @@ async function fetchApi(url, method, body = null) {
 // ==========================================
 // GESTION DES PERSONNAGES
 // ==========================================
+// Remplace la fonction renderCharacters existante par celle-ci
 async function renderCharacters() {
     charactersList.innerHTML = '<p style="color: var(--primary);">Synchronisation...</p>';
     if (myCharacters.length === 0) { 
@@ -64,15 +65,30 @@ async function renderCharacters() {
     for (let i = 0; i < myCharacters.length; i++) {
         const charName = myCharacters[i];
         const res = await fetchApi(`${PLAYER_API}/${charName}`, 'GET');
-        loadedData[charName] = (res && res.status === 200) ? res.data : { username: charName, level: 1, xp: 0, monsters: [] };
+        loadedData[charName] = (res && res.status === 200) ? res.data : { username: charName, level: 1, experience: 0, monsters: [] };
 
         const data = loadedData[charName];
         const safeId = `btn-summon-${i}`;
+        
+        // --- NOUVEAUTÉ : Calcul de la barre d'XP Joueur ---
+        const level = data.level || 1;
+        const currentXp = data.experience || data.xp || 0;
+        const xpThreshold = data.xpThreshold || (level * 1000); // Utilise le palier réel si dispo
+        const xpPct = Math.min(100, (currentXp / xpThreshold) * 100);
+        // --------------------------------------------------
+
         const card = document.createElement('div');
         card.className = 'char-card';
         card.innerHTML = `
-            <h4>${data.username}</h4>
-            <div class="char-level">Niveau ${data.level || 1}</div>
+            <div style="text-align: center; margin-bottom: 15px; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px;">
+                <h4 style="margin: 0; color: #fff;">${data.username} <span style="color: #ffd700; font-size: 0.8rem;">(Nv.${level})</span></h4>
+                
+                <div style="background: rgba(255,255,255,0.1); border-radius: 5px; height: 8px; width: 100%; margin-top: 8px; overflow: hidden;">
+                    <div style="width: ${xpPct}%; background: #00d4ff; height: 100%; box-shadow: 0 0 5px #00d4ff; transition: width 0.5s;"></div>
+                </div>
+                <div style="font-size: 0.65rem; color: #aaa; margin-top: 3px; text-transform: uppercase;">XP : ${Math.floor(currentXp)} / ${xpThreshold}</div>
+            </div>
+            
             <div class="card-actions">
                 <button class="card-btn" onclick="openProfileModal('${charName}')">📜 Profil</button>
                 <button class="card-btn" onclick="openMonstersModal('${charName}')">🐉 Bestiaire</button>
@@ -172,12 +188,23 @@ window.openMonstersModal = async function(charName) {
                 const m = await res.json();
                 const t = monsterTemplates[m.templateId] || monsterTemplates.default;
                 
+                // --- CALCUL DE L'XP DU MONSTRE ---
+                const currentXp = m.xp || 0;
+                const xpRequired = (m.level || 1) * 1000;
+                const xpPct = Math.min(100, (currentXp / xpRequired) * 100);
+
                 inv.innerHTML += `
                     <div class="monster-item">
                         <div class="monster-level-badge">Lv.${m.level || 1}</div>
                         <img src="${t.img}">
                         <span class="monster-name-mini">${t.name}</span>
-                        <div class="monster-stats" style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; font-size: 0.8rem; margin-top: 5px;">
+                        
+                        <div style="background: rgba(255,255,255,0.1); border-radius: 4px; height: 6px; width: 90%; margin: 5px auto 0; overflow: hidden;">
+                            <div style="width: ${xpPct}%; background: #00d4ff; height: 100%; box-shadow: 0 0 5px #00d4ff;"></div>
+                        </div>
+                        <div style="font-size: 0.6rem; color: #aaa; text-align: center; margin-bottom: 5px;">XP : ${currentXp}/${xpRequired}</div>
+
+                        <div class="monster-stats" style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; font-size: 0.8rem;">
                             <div class="stat-hp">❤️ ${m.hp || 0}</div>
                             <div class="stat-atk">⚔️ ${m.atk || 0}</div>
                             <div class="stat-def">🛡️ ${m.def || 0}</div>
@@ -257,28 +284,77 @@ window.closeRevealModal = function(name) {
 // ==========================================
 // SYSTÈME DE COMBAT
 // ==========================================
+// --- VARIABLES GLOBALES POUR L'ARÈNE ---
+let arenaMonsters = [];
+let selectedM1 = null;
+let selectedM2 = null;
+
 async function fillArenaDropdowns() {
     try {
         const res = await fetch(MONSTER_API);
-        const monsters = await res.json();
-        const s1 = document.getElementById('arena-m1');
-        const s2 = document.getElementById('arena-m2');
-        if (!s1 || !s2) return;
-        s1.innerHTML = ''; s2.innerHTML = '';
-        monsters.forEach(m => {
-            const t = monsterTemplates[m.templateId] || monsterTemplates.default;
-            const opt = `<option value="${m.id}">[Lv.${m.level}] ${t.name} (HP:${m.hp})</option>`;
-            s1.innerHTML += opt; s2.innerHTML += opt;
-        });
+        arenaMonsters = await res.json();
+        renderArenaLists();
     } catch (e) { console.error("Erreur chargement arène"); }
 }
 
-window.startBattle = async function() {
-    const m1Id = document.getElementById('arena-m1').value;
-    const m2Id = document.getElementById('arena-m2').value;
+function renderArenaLists() {
+    const list1 = document.getElementById('arena-m1-list');
+    const list2 = document.getElementById('arena-m2-list');
+    if (!list1 || !list2) return;
+    
+    list1.innerHTML = '';
+    list2.innerHTML = '';
 
-    if (!m1Id || !m2Id || m1Id === m2Id) {
-        return alert("Sélectionnez deux monstres différents !");
+    // Trouver les propriétaires des monstres sélectionnés
+    const ownerM1 = selectedM1 ? arenaMonsters.find(m => m.id === selectedM1)?.ownerUsername : null;
+    const ownerM2 = selectedM2 ? arenaMonsters.find(m => m.id === selectedM2)?.ownerUsername : null;
+
+    arenaMonsters.forEach(m => {
+        const t = monsterTemplates[m.templateId] || monsterTemplates.default;
+        
+        // --- Construction HTML de la carte ---
+        const buildCard = (slot, isSelected, isDisabled) => `
+            <div class="monster-select-card ${isSelected ? `selected-${slot}` : ''} ${isDisabled ? 'disabled' : ''}" 
+                 onclick="${isDisabled ? '' : `selectArenaMonster(${slot}, '${m.id}')`}">
+                <img src="${t.img}">
+                <div class="monster-select-info">
+                    <span class="monster-select-name">[Lv.${m.level}] ${t.name}</span>
+                    <span class="monster-select-owner">👤 Dresseur : ${m.ownerUsername}</span>
+                    <span style="font-size: 0.7rem; color: #aaa;">❤️ ${m.hp} | ⚔️ ${m.atk}</span>
+                </div>
+            </div>
+        `;
+
+        // Slot 1 : On désactive si ce monstre appartient au dresseur 2 (ou s'il est déjà sélectionné en slot 2)
+        const disableForM1 = (ownerM2 === m.ownerUsername) || (selectedM2 === m.id);
+        list1.innerHTML += buildCard(1, selectedM1 === m.id, disableForM1);
+
+        // Slot 2 : On désactive si ce monstre appartient au dresseur 1 (ou s'il est déjà sélectionné en slot 1)
+        const disableForM2 = (ownerM1 === m.ownerUsername) || (selectedM1 === m.id);
+        list2.innerHTML += buildCard(2, selectedM2 === m.id, disableForM2);
+    });
+}
+
+window.selectArenaMonster = function(slot, monsterId) {
+    if (slot === 1) {
+        selectedM1 = (selectedM1 === monsterId) ? null : monsterId; // Toggle
+    } else {
+        selectedM2 = (selectedM2 === monsterId) ? null : monsterId; // Toggle
+    }
+    renderArenaLists(); // Redessine pour mettre à jour les couleurs et griser les options
+};
+
+// Remplace la fonction startBattle existante
+window.startBattle = async function() {
+    const m1Id = selectedM1;
+    const m2Id = selectedM2;
+
+    if (!m1Id || !m2Id) return alert("Veuillez sélectionner deux monstres dans l'arène !");
+
+    const m1DataCheck = arenaMonsters.find(m => m.id === m1Id);
+    const m2DataCheck = arenaMonsters.find(m => m.id === m2Id);
+    if (m1DataCheck.ownerUsername === m2DataCheck.ownerUsername) {
+        return alert("Sélectionnez deux monstres de dresseurs différents !");
     }
 
     const btn = document.getElementById('btn-fight');
@@ -286,59 +362,57 @@ window.startBattle = async function() {
     btn.innerText = "Calcul...";
 
     try {
+        // --- 1. RÉCUPÉRATION DES STATS "AVANT" (MONSTRES + JOUEURS) ---
+        const fetchPlayer = async (username) => {
+            const r = await fetch(`${PLAYER_API}/${username}`, { headers: { 'Authorization': `Bearer ${currentToken}` } });
+            if (!r.ok) return { level: 1, totalBattles: 0, experience: 0, xpThreshold: 1000 };
+            return r.json();
+        };
+
+        const [resM1, resM2] = await Promise.all([fetch(`${MONSTER_API}/${m1Id}`), fetch(`${MONSTER_API}/${m2Id}`)]);
+        const m1Old = await resM1.json();
+        const m2Old = await resM2.json();
+        const p1Old = await fetchPlayer(m1Old.ownerUsername);
+        const p2Old = await fetchPlayer(m2Old.ownerUsername);
+
+        // --- 2. LANCEMENT DU COMBAT ---
         const battleRes = await fetch(`${COMBAT_API}/start?monster1Id=${m1Id}&monster2Id=${m2Id}`, { 
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${currentToken}`
-            }
+            method: 'POST', headers: { 'Authorization': `Bearer ${currentToken}` }
         });
-
-        if (!battleRes.ok) {
-            const errorText = await battleRes.text();
-            throw new Error("Le serveur de combat a renvoyé une erreur : " + errorText);
-        }
-
+        if (!battleRes.ok) throw new Error("Erreur serveur combat.");
         const battle = await battleRes.json();
 
-        const [resM1, resM2] = await Promise.all([
-            fetch(`${MONSTER_API}/${m1Id}`),
-            fetch(`${MONSTER_API}/${m2Id}`)
-        ]);
-
-        if (!resM1.ok || !resM2.ok) throw new Error("Impossible de récupérer les stats des monstres.");
-
-        const m1 = await resM1.json();
-        const m2 = await resM2.json();
-
         const battleDisplay = document.getElementById('battle-display');
-        if (battleDisplay) {
-            battleDisplay.classList.remove('hidden');
-            battleDisplay.scrollIntoView({ behavior: 'smooth' });
-        }
+        battleDisplay.classList.remove('hidden');
+        battleDisplay.scrollIntoView({ behavior: 'smooth' });
         
-        await animateBattle(battle, m1, m2);
-        // Attendre un petit peu après la fin de l'animation pour laisser respirer le joueur
+        await animateBattle(battle, m1Old, m2Old);
         await new Promise(r => setTimeout(r, 1000));
-        // 1. On récupère les données "APRES" combat
-        const [resNewM1, resNewM2, resNewPlayer] = await Promise.all([
+
+        // --- 3. RÉCUPÉRATION DES STATS "APRÈS" ---
+        const [resNewM1, resNewM2] = await Promise.all([
             fetch(`${MONSTER_API}/${m1Id}`).then(r => r.json()),
-            fetch(`${MONSTER_API}/${m2Id}`).then(r => r.json()),
-            fetch(`${PLAYER_API}/${currentUser}`).then(r => r.json())
+            fetch(`${MONSTER_API}/${m2Id}`).then(r => r.json())
         ]);
-        // 2. On affiche la popup de bilan
-        showVictoryScreen(battle, {old: m1, new: resNewM1}, {old: m2, new: resNewM2}, resNewPlayer);
-        // 3. Rafraîchir l'interface globale
-        renderCharacters();
+        const p1New = await fetchPlayer(m1Old.ownerUsername);
+        const p2New = await fetchPlayer(m2Old.ownerUsername);
+
+        // --- 4. AFFICHAGE DES RÉSULTATS GLOBAUX ---
+        showVictoryScreen(
+            battle, 
+            {old: m1Old, new: resNewM1, playerOld: p1Old, playerNew: p1New}, 
+            {old: m2Old, new: resNewM2, playerOld: p2Old, playerNew: p2New}
+        );
+        
+        renderCharacters(); 
         loadBattleHistory();
 
     } catch (e) {
-        console.error("Détail de l'erreur JS:", e);
+        console.error("Erreur combat :", e);
         alert("Erreur : " + e.message);
-        btn.disabled = false; 
-        btn.innerText = "LANCER";
+        btn.disabled = false; btn.innerText = "LANCER";
     }
 };
-
 async function animateBattle(battle, m1, m2) {
     const logs = document.getElementById('battle-logs');
     const arenaDiv = document.querySelector('.battle-arena'); 
@@ -599,42 +673,62 @@ async function showBattleLogs(battleId) {
     }
 }
 
-window.showVictoryScreen = function(battle, m1Data, m2Data, playerData) {
-    const isM1Winner = battle.winnerMonsterId.includes(m1Data.old.templateId);
-    const winner = isM1Winner ? m1Data : m2Data;
+// Remplace la fonction showVictoryScreen existante
+window.showVictoryScreen = function(battle, m1Data, m2Data) {
+    const isM1Winner = battle.winnerMonsterId.includes(m1Data.old.templateId) || battle.winnerMonsterId.includes(m1Data.old.ownerUsername);
     
-    // On calcule l'XP gagnée (différence entre new et old)
-    const xpGained = winner.new.xp - winner.old.xp;
-    
-    // Vérification de la montée de niveau
-    const hasLeveledUp = winner.new.level > winner.old.level;
+    // Fonction utilitaire pour calculer l'XP (gère la montée de niveau)
+    const calcXp = (oldData, newData, isPlayer = false) => {
+        let xpGained = (isPlayer ? newData.experience : newData.xp) - (isPlayer ? oldData.experience : oldData.xp);
+        if (newData.level > oldData.level) {
+            for(let l = oldData.level; l < newData.level; l++) {
+                xpGained += isPlayer ? (oldData.xpThreshold || l * 1000) : (l * 1000);
+            }
+        }
+        return Math.max(0, Math.round(xpGained));
+    };
+
+    // Générateur de carte de résultat
+    const buildResultCard = (data, isWinner) => {
+        const t = monsterTemplates[data.new.templateId] || monsterTemplates.default;
+        const mLevelUp = data.new.level > data.old.level;
+        const pLevelUp = data.playerNew.level > data.playerOld.level;
+        
+        return `
+            <div class="gain-card" style="border: 2px solid ${isWinner ? '#00d4ff' : '#ff4d4d'}; position: relative;">
+                ${isWinner ? '<div style="position:absolute; top:-15px; left:50%; transform:translateX(-50%); background:#00d4ff; color:#000; padding:2px 10px; border-radius:10px; font-weight:bold; font-size:0.8rem;">VAINQUEUR</div>' : ''}
+                
+                <h4 style="margin-top: 10px; color: #fff;">${data.old.ownerUsername}</h4>
+                <p style="font-size: 0.8rem; color: #aaa;">Dresseur Lv.${data.playerNew.level} ${pLevelUp ? '<span style="color:#ffd700;">(UP!)</span>' : ''}</p>
+                <p style="color: #00d4ff; font-weight: bold; font-size: 0.9rem;">+${calcXp(data.playerOld, data.playerNew, true)} XP Dresseur</p>
+                
+                <hr style="border-color: #333; margin: 10px 0;">
+                
+                <img src="${t.img}" style="width: 80px; filter: drop-shadow(0 0 5px ${isWinner ? '#00d4ff' : 'transparent'});">
+                <h5 style="margin: 5px 0;">${t.name} ${mLevelUp ? '<span class="level-up-badge">LVL UP !</span>' : ''}</h5>
+                <p style="color: #00d4ff; font-weight: bold; font-size: 0.9rem;">+${calcXp(data.old, data.new, false)} XP Monstre</p>
+                <p style="font-size: 0.75rem; color: #aaa;">Matchs joués : ${data.new.totalBattles || 1}</p>
+                
+                ${mLevelUp ? `
+                    <div style="font-size: 0.75rem; margin-top: 5px;">
+                        <span class="stat-up">❤️ +${data.new.hp - data.old.hp}</span>
+                        <span class="stat-up">⚔️ +${data.new.atk - data.old.atk}</span>
+                    </div>
+                ` : `<p style="font-size:0.75rem; color:grey;">Niveau ${data.new.level} atteint.</p>`}
+            </div>
+        `;
+    };
 
     modalContent.innerHTML = `
-        <div class="victory-popup">
-            <h1 class="victory-title">FIN DU COMBAT</h1>
-            <div class="result-header" style="color:${isM1Winner ? 'var(--primary)' : 'var(--danger)'}">
-                ${isM1Winner ? 'VICTOIRE' : 'DÉFAITE'}
+        <div class="victory-popup" style="max-width: 600px;">
+            <h1 class="victory-title" style="margin-bottom: 30px;">BILAN DU COMBAT</h1>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                ${buildResultCard(m1Data, isM1Winner)}
+                ${buildResultCard(m2Data, !isM1Winner)}
             </div>
             
-            <img src="${(monsterTemplates[winner.new.templateId] || monsterTemplates.default).img}" style="width: 120px;">
-            
-            <div class="gain-grid">
-                <div class="gain-card">
-                    <h5>MONSTRE ${hasLeveledUp ? '<span class="level-up-badge">NIVEAU SUP !</span>' : ''}</h5>
-                    <p>XP : +${xpGained >= 0 ? xpGained : 0}</p>
-                    ${hasLeveledUp ? `
-                        <span class="stat-up">❤️ HP : +${winner.new.hp - winner.old.hp}</span>
-                        <span class="stat-up">⚔️ ATK : +${winner.new.atk - winner.old.atk}</span>
-                    ` : '<p style="font-size:0.8rem; color:grey;">Niveau ${winner.new.level}</p>'}
-                </div>
-
-                <div class="gain-card">
-                    <h5>DRESSEUR</h5>
-                    <p>Niveau : <strong>${playerData.level || 1}</strong></p>
-                    <p>Matchs : <strong>${playerData.totalBattles || 0}</strong></p>
-                </div>
-            </div>
-            <button onclick="modalOverlay.classList.add('hidden')" class="action-btn glow" style="margin-top: 20px;">CONTINUER</button>
+            <button onclick="modalOverlay.classList.add('hidden')" class="action-btn glow" style="margin-top: 25px;">CONTINUER</button>
         </div>
     `;
     modalOverlay.classList.remove('hidden');

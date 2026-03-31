@@ -175,8 +175,15 @@ public class BattleService {
         }
 
         int statValue = getStatValue(attacker, statName);
+        // --- NOUVEAU CALCUL (Mitigation par pourcentage) ---
         int rawDamage = (int) (chosenSkill.getDmg() + (statValue * multiplier));
-        int finalDamage = Math.max(1, rawDamage - (defender.getDef() / 2));
+        
+        // Formule type RPG : Les dégâts sont multipliés par (100 / (100 + Défense))
+        // Exemple avec 50 de défense : Les dégâts sont multipliés par (100/150) = 0.66 (donc 33% de réduction)
+        double mitigationRatio = 100.0 / (100.0 + defender.getDef());
+        
+        int finalDamage = (int) Math.max(1, rawDamage * mitigationRatio);
+        // ----------------------------------------------------
         
         defenderHp = Math.max(0, defenderHp - finalDamage);
 
