@@ -101,4 +101,22 @@ public class PlayerService {
     public java.util.List<String> getPlayerMonsters(String username) throws Exception {
         return getPlayer(username).getMonsters();
     }
+
+    // 9. Traiter le résultat d'un combat (XP + Compteur)
+    public Player processBattleResult(String username, double xpAmount) throws Exception {
+        Player player = getPlayer(username);
+        
+        // 1. Incrémenter le nombre total de combats
+        player.setTotalBattles(player.getTotalBattles() + 1);
+        
+        // 2. Ajouter l'XP
+        player.setExperience(player.getExperience() + xpAmount);
+
+        // 3. Boucle de Level Up (réutilisation de ta logique)
+        while (player.getExperience() >= player.getXpThreshold() && player.getLevel() < 50) {
+            levelUpLogic(player);
+        }
+
+        return playerRepository.save(player);
+    }
 }

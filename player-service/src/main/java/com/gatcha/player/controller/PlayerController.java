@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.gatcha.player.model.XpRequest;
@@ -204,6 +205,27 @@ public class PlayerController {
 
         try {
             return ResponseEntity.ok(playerService.getPlayerMonsters(username));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    // --- RESULTAT DE COMBAT (INTERNE) ---
+    @Operation(
+            summary = "Enregistrer le résultat d'un combat (INTERNE)",
+            description = "Appelé par l'API Combat pour ajouter de l'XP et +1 au compteur de combats. Ne nécessite pas de token."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Profil mis à jour avec succès"),
+            @ApiResponse(responseCode = "400", description = "Erreur de mise à jour")
+    })
+    @PutMapping("/{username}/battle-result")
+    public ResponseEntity<?> recordBattleResult(
+            @Parameter(description = "Le pseudo du joueur") @PathVariable String username,
+            @Parameter(description = "La quantité d'XP gagnée") @RequestParam double xp) {
+        
+        try {
+            return ResponseEntity.ok(playerService.processBattleResult(username, xp));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }

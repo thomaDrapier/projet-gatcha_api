@@ -28,6 +28,7 @@ public class BattleService {
     private final RestTemplate restTemplate;
     private final String MONSTER_API_URL = "http://monster-service:8084/monsters/";
     private final Random random = new Random();
+    private final String PLAYER_API_URL = "http://player-service:8082/player/"; // AJOUT ICI
 
     public BattleService(BattleRepository battleRepository) {
         this.battleRepository = battleRepository;
@@ -98,7 +99,30 @@ public class BattleService {
             }
             turn++;
         }
+        // --- LOGIQUE DE FIN DE COMBAT : DISTRIBUTION D'XP ---
+        boolean m1Wins = hp1 > 0;
+        
+        // Configuration des gains (à équilibrer selon tes envies)
+        int baseMonsterXp = 1000;
+        double basePlayerXp = 100.0;
+        
+        int winnerMonsterXp = baseMonsterXp;
+        int loserMonsterXp = (int)(baseMonsterXp * 0.3); // Le perdant gagne 30% d'XP
+        
+        double winnerPlayerXp = basePlayerXp;
+        double loserPlayerXp = basePlayerXp * 0.3; // Le joueur perdant gagne 30% d'XP
+        
+        String winnerPlayerName = m1Wins ? m1.getOwnerUsername() : m2.getOwnerUsername();
+        String loserPlayerName = m1Wins ? m2.getOwnerUsername() : m1.getOwnerUsername();
 
+        // 1. Envoi de l'XP aux monstres
+        sendMonsterXp(m1Wins ? monster1Id : monster2Id, winnerMonsterXp, token);
+        sendMonsterXp(m1Wins ? monster2Id : monster1Id, loserMonsterXp, token);
+        
+        // 2. Envoi des résultats aux joueurs (XP + Compteur)
+        sendPlayerBattleResult(winnerPlayerName, winnerPlayerXp);
+        sendPlayerBattleResult(loserPlayerName, loserPlayerXp);
+        // ----------------------------------------------------
         for (BattleStep step : battle.getReplayLogs()) {
             if (step.getCooldowns() != null) {
                 step.getCooldowns().remove(null);
@@ -186,5 +210,32 @@ public class BattleService {
             }
         }
         return cds;
+    }
+
+    // --- METHODES UTILITAIRES POUR LES REQUETES HTTP ---
+
+    private void sendMonsterXp(String monsterId, int xp, String token) {
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("Authorization", token); // On transmet le token s'il est requis par MonsterController
+            HttpEntity<Void> entity = new HttpEntity<>(headers);
+
+            String url = MONSTER_API_URL + monsterId + "/add-xp?xp=" + xp;
+            restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
+            System.out.println("[BATTLE] " + xp + " XP envoyés au monstre " + monsterId);
+        } catch (Exception e) {
+            System.err.println("[BATTLE] Erreur lors de l'envoi d'XP au monstre " + monsterId + " : " + e.getMessage());
+        }
+    }
+
+    private void sendPlayerBattleResult(String username, double xp) {
+        try {
+            // Pas de token nécessaire car notre route est marquée comme (INTERNE)
+            String url = PLAYER_API_URL + username + "/battle-result?xp=" + xp;
+            restTemplate.exchange(url, HttpMethod.PUT, null, String.class);
+            System.out.println("[BATTLE] Résultat de combat envoyé pour le joueur " + username + " (+" + xp + " XP)");
+        } catch (Exception e) {
+            System.err.println("[BATTLE] Erreur lors de la mise à jour du joueur " + username + " : " + e.getMessage());
+        }
     }
 }

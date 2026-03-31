@@ -316,7 +316,20 @@ window.startBattle = async function() {
             battleDisplay.scrollIntoView({ behavior: 'smooth' });
         }
         
-        animateBattle(battle, m1, m2);
+        await animateBattle(battle, m1, m2);
+        // Attendre un petit peu après la fin de l'animation pour laisser respirer le joueur
+        await new Promise(r => setTimeout(r, 1000));
+        // 1. On récupère les données "APRES" combat
+        const [resNewM1, resNewM2, resNewPlayer] = await Promise.all([
+            fetch(`${MONSTER_API}/${m1Id}`).then(r => r.json()),
+            fetch(`${MONSTER_API}/${m2Id}`).then(r => r.json()),
+            fetch(`${PLAYER_API}/${currentUser}`).then(r => r.json())
+        ]);
+        // 2. On affiche la popup de bilan
+        showVictoryScreen(battle, {old: m1, new: resNewM1}, {old: m2, new: resNewM2}, resNewPlayer);
+        // 3. Rafraîchir l'interface globale
+        renderCharacters();
+        loadBattleHistory();
 
     } catch (e) {
         console.error("Détail de l'erreur JS:", e);
@@ -330,7 +343,6 @@ async function animateBattle(battle, m1, m2) {
     const logs = document.getElementById('battle-logs');
     const arenaDiv = document.querySelector('.battle-arena'); 
 
-    // SECURITÉ : Si l'arène n'est pas dans le HTML, on s'arrête proprement
     if (!arenaDiv) {
         console.error("Erreur: L'élément HTML '.battle-arena' est introuvable !");
         return; 
@@ -341,7 +353,6 @@ async function animateBattle(battle, m1, m2) {
     const t1 = monsterTemplates[m1.templateId] || monsterTemplates.default;
     const t2 = monsterTemplates[m2.templateId] || monsterTemplates.default;
 
-    // --- NOUVEAU VISUEL DE L'ARÈNE ---
     arenaDiv.innerHTML = `
         <div class="fighter" id="fighter-1">
             <div class="fighter-info">
@@ -354,9 +365,7 @@ async function animateBattle(battle, m1, m2) {
                 <div id="f1-hp-text" class="hp-text">${m1.hp}/${m1.hp} HP</div>
             </div>
         </div>
-
         <div class="vs-badge">VS</div>
-
         <div class="fighter" id="fighter-2">
             <div class="fighter-info">
                 <span class="fighter-name" style="color:var(--danger); font-weight:bold;">Niv ${m2.level} - ${t2.name}</span>
@@ -372,6 +381,7 @@ async function animateBattle(battle, m1, m2) {
 
     // Boucle de combat
     for (const step of battle.replayLogs) {
+        // On attend la fin du timer avant de passer au tour suivant
         await new Promise(r => setTimeout(r, 800));
         
         let logDesc = step.description.replace("Tour ", "T");
@@ -396,10 +406,19 @@ async function animateBattle(battle, m1, m2) {
             setTimeout(() => document.getElementById('fighter-1').classList.remove('shake'), 400);
         }
     }
+
+    // --- CRUCIAL : On attend un peu après le dernier coup pour que le joueur voit le résultat ---
+    await new Promise(r => setTimeout(r, 1000));
+
     document.getElementById('battle-status').innerText = "🏁 Combat Terminé !";
     document.getElementById('btn-fight').disabled = false;
     document.getElementById('btn-fight').innerText = "LANCER";
+    
+    // On charge l'historique en arrière-plan
     loadBattleHistory();
+
+    // On retourne true pour confirmer à la fonction appelante que l'animation est finie
+    return true; 
 }
 
 // ==========================================
@@ -579,6 +598,47 @@ async function showBattleLogs(battleId) {
         arenaContent.innerHTML = `<p style="text-align:center; color:#ff4d4d;">Erreur lors du chargement de la vidéo.</p>`;
     }
 }
+
+window.showVictoryScreen = function(battle, m1Data, m2Data, playerData) {
+    const isM1Winner = battle.winnerMonsterId.includes(m1Data.old.templateId);
+    const winner = isM1Winner ? m1Data : m2Data;
+    
+    // On calcule l'XP gagnée (différence entre new et old)
+    const xpGained = winner.new.xp - winner.old.xp;
+    
+    // Vérification de la montée de niveau
+    const hasLeveledUp = winner.new.level > winner.old.level;
+
+    modalContent.innerHTML = `
+        <div class="victory-popup">
+            <h1 class="victory-title">FIN DU COMBAT</h1>
+            <div class="result-header" style="color:${isM1Winner ? 'var(--primary)' : 'var(--danger)'}">
+                ${isM1Winner ? 'VICTOIRE' : 'DÉFAITE'}
+            </div>
+            
+            <img src="${(monsterTemplates[winner.new.templateId] || monsterTemplates.default).img}" style="width: 120px;">
+            
+            <div class="gain-grid">
+                <div class="gain-card">
+                    <h5>MONSTRE ${hasLeveledUp ? '<span class="level-up-badge">NIVEAU SUP !</span>' : ''}</h5>
+                    <p>XP : +${xpGained >= 0 ? xpGained : 0}</p>
+                    ${hasLeveledUp ? `
+                        <span class="stat-up">❤️ HP : +${winner.new.hp - winner.old.hp}</span>
+                        <span class="stat-up">⚔️ ATK : +${winner.new.atk - winner.old.atk}</span>
+                    ` : '<p style="font-size:0.8rem; color:grey;">Niveau ${winner.new.level}</p>'}
+                </div>
+
+                <div class="gain-card">
+                    <h5>DRESSEUR</h5>
+                    <p>Niveau : <strong>${playerData.level || 1}</strong></p>
+                    <p>Matchs : <strong>${playerData.totalBattles || 0}</strong></p>
+                </div>
+            </div>
+            <button onclick="modalOverlay.classList.add('hidden')" class="action-btn glow" style="margin-top: 20px;">CONTINUER</button>
+        </div>
+    `;
+    modalOverlay.classList.remove('hidden');
+};
 
 // Initialisation
 renderCharacters();
